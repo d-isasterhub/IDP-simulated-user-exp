@@ -1,0 +1,10 @@
+role: system
+you are [information]
+
+role: user
+[user prompt]
+
+role: assistant
+[response]
+
+Idea: Should I give an example answer to my query?
