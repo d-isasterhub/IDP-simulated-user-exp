@@ -1,8 +1,7 @@
 import openai
 import os
 
-openai.api_key = "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"
-# = os.environ["OPENAI_API_KEY"]
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
 # system = "You are a human who has a lot of experience with Machine Learning and Artificial Intelligence. "\
 #     "You will be confronted with an image that has been created with an Explainable Artificial Intelligence (XAI) method "\
