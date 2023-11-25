@@ -161,5 +161,7 @@ cython_debug/
 
 # Custom
 laptopenv*
+xaienv*
+graveyard*
 checklist.todo
 SimulatedUsers-Final_August4.csv

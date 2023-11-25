@@ -13,7 +13,7 @@ install.packages("ggplot2")
 
 ## Libraries
 
-```{r libraries}
+```{r libraries, include=FALSE}
 library(data.table)
 library(magrittr)
 library(ggplot2)
@@ -22,7 +22,7 @@ library(ggplot2)
 
 ## Data Tables
 
-```{r data tables, echo=FALSE}
+```{r data tables}
 dt <- fread("SimulatedUsers-Final_August4.csv")
 data <- dt[3:nrow(dt), -c(1:2)]
 questions <- dt[1, -c(1:2)]
