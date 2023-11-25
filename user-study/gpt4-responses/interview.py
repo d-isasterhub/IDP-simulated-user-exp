@@ -2,6 +2,7 @@
 import copy
 import interview_util
 import interview_util_images
+import openai
 import pandas as pd
 
 
@@ -30,7 +31,26 @@ class Interview:
         self.df = pd.read_csv(csv_file_path)
         self.df = self.df.tail(-2)
         self.df.drop(self.df.columns[[0, 1]], axis=1, inplace=True)
+        self.df = self.df.fillna('NA')
         pd.set_option('display.max_columns', None)
+        
+        
+    def conduct(self):
+        answered_questions =  ["Q" + str(i) for i in range(1, 20+1)]
+        unanswered_question = answered_questions.pop(19)
+        self.df['Q20_gpt4'] = self.df.apply(self.get_answer, args = (answered_questions, unanswered_question),axis=1)
+        self.df.to_csv("out.csv")
+        
+        
+    def get_answer(self, row, given_columns:list, open_question:str):
+        query = self.create_template(row, given_columns, open_question)
+        print(query)
+        response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 300,
+            messages = query
+        )
+        return response["choices"][0]["message"]["content"]
         
         
     def create_template(self, row, given_columns:list, open_question:str):
@@ -51,7 +71,7 @@ class Interview:
                     '\n\nParakeet Auklet:\n' + row['Q160'] + \
                     '\n\nCrested Auklet:\n' + row['Q161']},] +\
             interview_util.MESSAGE_BASE_UNDERSTANDING +\
-                [{"role": "assistant", "content": self._replace(str(row['D4']), interview_util.EXPERIENCE_MAPPING)},] 
+                [{"role": "assistant", "content": self._replace(str(row['D4']), interview_util.UNDERSTANDING_MAPPING)},] 
                 
         for column in given_columns:
             self._create_question_and_answer(row, column)
@@ -64,15 +84,14 @@ class Interview:
     def _replace(self, string:str, dictionary:dict):
         result = string
         for number, _string in dictionary.items():
-            result.replace(number, _string)
+            result = result.replace(number, _string)
         return result
     
     
     def _create_question_and_answer(self, row, column:str):
         self._create_question(column)
         self.messages = self.messages + \
-            [{"role": "assistant", "content": interview_util.AUKLET_MAPPING[str(row[column])]},]
-            
+            [{"role": "assistant", "content": interview_util.AUKLET_MAPPING.get(str(row[column]), "NA")},]
             
     def _create_question(self, column:str):
         question = copy.deepcopy(interview_util.MESSAGE_QUESTION_AUKLET)
@@ -81,7 +100,8 @@ class Interview:
         self.messages = self.messages + question.copy()
   
     
-# test = Interview("user-study\SimulatedUsers-Final_August4.csv")
+test = Interview("user-study\SimulatedUsers-Final_August4.csv")
+test.conduct()
 # answered_questions =  ["Q" + str(i) for i in range(1, 20+1)]
 # unanswered_question = answered_questions.pop(19)
 

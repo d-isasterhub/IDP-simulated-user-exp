@@ -15,7 +15,7 @@ USER_SEX = "What is your sex? Choose from the following options:\n"\
     "- Male\n"\
     "- Prefer not to say"
 
-USER_EMPLOYMENT_STATUS = "What desccribes your employment statusover the last three month best? "\
+USER_EMPLOYMENT_STATUS = "What describes your employment status over the last three month best? "\
     "Choose from the following options:\n"\
     "- Working full-time\n"\
     "- Working part-time\n"\
