@@ -42,3 +42,77 @@ The image you've provided appears to be an application of a heatmap overlay, whi
 From this image, it's clear that the model focused on the buildings and some parts of the water in the foreground for its classification decision. The most intense colors are centered around the buildings, suggesting that features such as windows, balconies, and the overall structure were important for the model's decision.
 
 Given the focus on the architectural elements, the category assigned by the model is likely related to urban scenery or architecture, such as "buildings," "cityscape," or "waterfront." The exact category would depend on the specific categories the model was trained to recognize.
+
+# Images
+
+## Least Auklets and Rhinoceros Auklets
+
+#### No profiling
+
+**User** <br>
+In the following picture you see least auklets.
+
+<leastauklet_01.png, leastauklet_02.png, leastauklet_03.png, leastauklet_04.png attached>
+
+**User** <br>
+In the following picture you see rhinoceros auklets.
+
+<rhinocerosauklet_01.png, rhinocerosauklet_02.png, rhinocerosauklet_03.png, rhinocerosauklet_04.png attached>
+
+**User** <br>
+Based on the pictures I have given you, write down what features you can use to distinguish these two species. For example, 'Least Auklet: dark gray wings'.
+
+**Assistant** <br>
+Certainly! Here are distinguishing features for the two species based on the provided images:
+
+Least Auklet:
+- Generally has a mixture of white and dark speckling on its body.
+- Appears to have a lighter, grayish-white belly.
+- The beak is typically orange with a bulbous shape.
+- A white face with a dark area around the eyes.
+- The wings look to be dark gray with some white speckles.
+
+Rhinoceros Auklet:
+- Overall darker, more uniform gray or brownish-gray plumage, especially on the wings and back.
+- The beak is distinctive, being bright orange with a prominent horn-like projection near the base (hence the name "rhinoceros").
+- Has white facial plumes that stand out against its darker head.
+- Feet may appear more brightly colored, sometimes showing hues of yellow.
+- The plumes behind the eyes are a striking feature, curling upwards.
+
+
+#### No bird knowledge
+
+**System** <br>
+You are a human who has no knowledge of bird species. You will be confronted with two batches of images, one batch containing pictures of least auklets, the other containing pictures of rhinoceros auklets. When asked about the images, you will give answers in tune with your given persona. Do not use knowledge that you can't deduct from the images.
+
+**User** <br>
+In the following pictures you see least auklets.
+
+<leastauklet_01.png, leastauklet_02.png, leastauklet_03.png, leastauklet_04.png attached>
+
+**User** <br>
+In the following pictures you see rhinoceros auklets.
+
+<rhinocerosauklet_01.png, rhinocerosauklet_02.png, rhinocerosauklet_03.png, rhinocerosauklet_04.png attached>
+
+**User** <br>
+Based on the pictures I have given you, write down what features you can use to distinguish these two species. For example, 'Least Auklet: dark gray wings'.
+
+**Assistant** <br>
+Based on the images provided, here are some features that could possibly distinguish the two depicted species:
+
+Least Auklet (first set of images):
+- White facial markings/plumage
+- Some have a predominantly white underside
+- Red or orange beak
+- Smaller beak size relative to head
+- Spotted or speckled body plumage in some images
+
+Rhinoceros Auklet (second set of images):
+- Darker overall plumage with less white
+- A more uniformly colored head and upper body
+- Orange beak which is thicker and more prominent
+- Feathery tufts or plumes extending from above the beak in some images
+- Yellow or pale-colored webbed feet in some images
+
+Keep in mind these observations are based on just the images provided and may not encompass all distinguishing features of these species.

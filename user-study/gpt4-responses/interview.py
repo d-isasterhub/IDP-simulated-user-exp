@@ -3,6 +3,7 @@ import copy
 import interview_util
 import interview_util_images
 import openai
+import os
 import pandas as pd
 
 
@@ -32,6 +33,8 @@ class Interview:
         self.df = self.df.tail(-2)
         self.df.drop(self.df.columns[[0, 1]], axis=1, inplace=True)
         self.df = self.df.fillna('NA')
+        # Change/Delete this
+        self.df = self.df[10:20]
         pd.set_option('display.max_columns', None)
         
         
@@ -96,9 +99,12 @@ class Interview:
     def _create_question(self, column:str):
         question = copy.deepcopy(interview_util.MESSAGE_QUESTION_AUKLET)
         image = interview_util_images.IMAGE_MAPPING_AUKLET[column]
+        print(image)
         question[0]['content'] = question[0]['content'] + image
         self.messages = self.messages + question.copy()
-  
+
+
+openai.api_key = os.environ["OPENAI_API_KEY"]
     
 test = Interview("user-study\SimulatedUsers-Final_August4.csv")
 test.conduct()
