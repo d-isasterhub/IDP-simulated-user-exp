@@ -1,0 +1,43 @@
+---
+title: "exploration-01"
+output: html_document
+date: "2023-11-21"
+---
+
+```{r setup, include=FALSE}
+install.packages("data.table")
+install.packages("magrittr")
+install.packages("ggplot2")
+```
+
+
+## Libraries
+
+```{r libraries, include=FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+```
+
+
+## Data Tables
+
+```{r data tables}
+dt <- fread("SimulatedUsers-Final_August4.csv")
+data <- dt[3:nrow(dt), -c(1:2)]
+questions <- dt[1, -c(1:2)]
+```
+
+
+## Test Plot
+
+You can also embed plots, for example:
+
+```{r test plot, echo=FALSE}
+ggplot(data, aes(x = Q_2.1)) + geom_bar()
+```
+
+
+## Some Heading
+
+Some text
