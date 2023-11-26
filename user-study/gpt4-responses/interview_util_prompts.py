@@ -103,8 +103,9 @@ CLASS_PREDICTION_Q1 = "I will again show you an image that consists of two sub-i
     "Please choose the bird species for this image that the xai model might "\
     "choose based on its reasoning (highlighted area) that you see in the bottom part. "\
     "Consider all of your previous answers of the interview and do internal reasoning that"\
-    "you do not include in your answer."\
-    "Choose one of the following options as answer:\n"\
+    "you do not include in your answer. "\
+    "Choose one of the following options as answer that you think is most likely the predicted "\
+    "class based on the xai explanation:\n"\
     "- Crested Auklet\n"\
     "- Least Auklet\n"\
     "- Parakeet Auklet\n"\

@@ -34,7 +34,7 @@ class Interview:
         self.df.drop(self.df.columns[[0, 1]], axis=1, inplace=True)
         self.df = self.df.fillna('NA')
         # Change/Delete this
-        self.df = self.df[10:20]
+        self.df = self.df[10:12]
         pd.set_option('display.max_columns', None)
         
         
