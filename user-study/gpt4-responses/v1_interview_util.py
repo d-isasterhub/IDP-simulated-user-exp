@@ -1,72 +1,72 @@
-import interview_util_prompts
-import interview_util_images
+import v1_interview_util_prompts
+import v1_interview_util_images
 
 MESSAGE_BASE_SYS = [
-    {"role": "system", "content": interview_util_prompts.SYSTEM}, 
+    {"role": "system", "content": v1_interview_util_prompts.SYSTEM}, 
 ]
 
 MESSAGE_BASE_AGE = [
-    {"role": "user", "content": interview_util_prompts.USER_AGE},
+    {"role": "user", "content": v1_interview_util_prompts.USER_AGE},
 ]
 
 MESSAGE_BASE_SEX = [
-    {"role": "user", "content": interview_util_prompts.USER_SEX},
+    {"role": "user", "content": v1_interview_util_prompts.USER_SEX},
 ]
 
 MESSAGE_BASE_EMPLOY = [
-    {"role": "user", "content": interview_util_prompts.USER_EMPLOYMENT_STATUS},
+    {"role": "user", "content": v1_interview_util_prompts.USER_EMPLOYMENT_STATUS},
 ]
 
 MESSAGE_BASE_MLXP1 = [
-    {"role": "user", "content": interview_util_prompts.USER_ML_EXPERIENCE_1},
+    {"role": "user", "content": v1_interview_util_prompts.USER_ML_EXPERIENCE_1},
 ]
 
 MESSAGE_BASE_MLXP2 = [
-    {"role": "user", "content": interview_util_prompts.USER_ML_EXPERIENCE_2},
+    {"role": "user", "content": v1_interview_util_prompts.USER_ML_EXPERIENCE_2},
 ]
 
 # ^ One message: Profiling (maybe in the System part "Who is the assistant"; alternatively: One Assistant message (2-3 sentences))
 
 # Omit WARMUP1, Check objective description if there is something we still need
 MESSAGE_BASE_WARMUP1 = [
-    {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_1},
-    {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_2},
+    {"role": "user", "content": v1_interview_util_prompts.OBJECTIVE_DESCRIPTION_1},
+    {"role": "user", "content": v1_interview_util_prompts.OBJECTIVE_DESCRIPTION_2},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_1_LEAST}
-    ] + interview_util_images.WARM_UP_TASK_1_LEAST_IMAGES},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_1_LEAST}
+    ] + v1_interview_util_images.WARM_UP_TASK_1_LEAST_IMAGES},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_1_RHINOCEROS}
-    ] + interview_util_images.WARM_UP_TASK_1_RHINOCEROS_IMAGES},
-    {"role": "user", "content": interview_util_prompts.WARM_UP_TASK_1},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_1_RHINOCEROS}
+    ] + v1_interview_util_images.WARM_UP_TASK_1_RHINOCEROS_IMAGES},
+    {"role": "user", "content": v1_interview_util_prompts.WARM_UP_TASK_1},
 ]
 
 MESSAGE_BASE_WARMUP2 = [
-    {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_3},
+    {"role": "user", "content": v1_interview_util_prompts.OBJECTIVE_DESCRIPTION_3},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_2_RHINOCEROS}
-    ] + interview_util_images.WARM_UP_TASK_2_RHINOCEROS_IMAGES},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_2_RHINOCEROS}
+    ] + v1_interview_util_images.WARM_UP_TASK_2_RHINOCEROS_IMAGES},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_2_LEAST}
-    ] + interview_util_images.WARM_UP_TASK_2_LEAST_IMAGES},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_2_LEAST}
+    ] + v1_interview_util_images.WARM_UP_TASK_2_LEAST_IMAGES},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_2_PARAKEET}
-    ] + interview_util_images.WARM_UP_TASK_2_PARAKEET_IMAGES},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_2_PARAKEET}
+    ] + v1_interview_util_images.WARM_UP_TASK_2_PARAKEET_IMAGES},
     {"role": "user", "content": [
-        {"type": "text", "text":interview_util_prompts.WARM_UP_TASK_2_CRESTED}
-    ] + interview_util_images.WARM_UP_TASK_2_CRESTED_IMAGES},
-    {"role": "user", "content": interview_util_prompts.WARM_UP_TASK_2},
+        {"type": "text", "text":v1_interview_util_prompts.WARM_UP_TASK_2_CRESTED}
+    ] + v1_interview_util_images.WARM_UP_TASK_2_CRESTED_IMAGES},
+    {"role": "user", "content": v1_interview_util_prompts.WARM_UP_TASK_2},
 ]
 
 MESSAGE_BASE_UNDERSTANDING = [
-    {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_4},
-    {"role": "user", "content": interview_util_prompts.UNDERSTANDING_CHECK},
+    {"role": "user", "content": v1_interview_util_prompts.OBJECTIVE_DESCRIPTION_4},
+    {"role": "user", "content": v1_interview_util_prompts.UNDERSTANDING_CHECK},
 ]
 
 MESSAGE_QUESTION_AUKLET = [
     {"role": "user", "content": 
         [
             {
-                "type": "text", "text": interview_util_prompts.CLASS_PREDICTION_Q1
+                "type": "text", "text": v1_interview_util_prompts.CLASS_PREDICTION_Q1
             },
         ]
     }

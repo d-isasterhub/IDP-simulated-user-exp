@@ -1,7 +1,7 @@
 # Imports
 import copy
-import interview_util
-import interview_util_images
+import v1_interview_util
+import v1_interview_util_images
 import openai
 import os
 import pandas as pd
@@ -58,24 +58,24 @@ class Interview:
         
         
     def create_template(self, row, given_columns:list, open_question:str):
-        self.messages = interview_util.MESSAGE_BASE_SYS +\
-            interview_util.MESSAGE_BASE_AGE + [{"role": "assistant", "content": str(row['D1'])}] +\
-            interview_util.MESSAGE_BASE_SEX +\
-                [{"role": "assistant", "content": self._replace(str(row['D2']), interview_util.SEX_MAPPING)},] +\
-            interview_util.MESSAGE_BASE_EMPLOY +\
-                [{"role": "assistant", "content": self._replace(str(row['D3']), interview_util.EMPLOYMENT_MAPPING)},] + \
-            interview_util.MESSAGE_BASE_MLXP1 +\
-                [{"role": "assistant", "content": self._replace(str(row['D4']), interview_util.EXPERIENCE_MAPPING)},] +\
-            interview_util.MESSAGE_BASE_MLXP2 + [{"role": "assistant", "content": row['D5']},] +\
-            interview_util.MESSAGE_BASE_WARMUP1 +\
+        self.messages = v1_interview_util.MESSAGE_BASE_SYS +\
+            v1_interview_util.MESSAGE_BASE_AGE + [{"role": "assistant", "content": str(row['D1'])}] +\
+            v1_interview_util.MESSAGE_BASE_SEX +\
+                [{"role": "assistant", "content": self._replace(str(row['D2']), v1_interview_util.SEX_MAPPING)},] +\
+            v1_interview_util.MESSAGE_BASE_EMPLOY +\
+                [{"role": "assistant", "content": self._replace(str(row['D3']), v1_interview_util.EMPLOYMENT_MAPPING)},] + \
+            v1_interview_util.MESSAGE_BASE_MLXP1 +\
+                [{"role": "assistant", "content": self._replace(str(row['D4']), v1_interview_util.EXPERIENCE_MAPPING)},] +\
+            v1_interview_util.MESSAGE_BASE_MLXP2 + [{"role": "assistant", "content": row['D5']},] +\
+            v1_interview_util.MESSAGE_BASE_WARMUP1 +\
                 [{"role": "assistant", "content": 'Least Auklet:\n' + row['Intro-1'] + '\n\nRhinoceros Auklet:\n' + row['Q158']},]+\
-            interview_util.MESSAGE_BASE_WARMUP2 +\
+            v1_interview_util.MESSAGE_BASE_WARMUP2 +\
                 [{"role": "assistant", "content": 'Rhinoceros Auklet:\n' + row['Intro-1.1'] +\
                     '\n\nLeast Auklet:\n' + row['Q159'] + \
                     '\n\nParakeet Auklet:\n' + row['Q160'] + \
                     '\n\nCrested Auklet:\n' + row['Q161']},] +\
-            interview_util.MESSAGE_BASE_UNDERSTANDING +\
-                [{"role": "assistant", "content": self._replace(str(row['D4']), interview_util.UNDERSTANDING_MAPPING)},] 
+            v1_interview_util.MESSAGE_BASE_UNDERSTANDING +\
+                [{"role": "assistant", "content": self._replace(str(row['D4']), v1_interview_util.UNDERSTANDING_MAPPING)},] 
                 
         # for column in given_columns:
         #     self._create_question_and_answer(row, column)
@@ -95,11 +95,11 @@ class Interview:
     def _create_question_and_answer(self, row, column:str):
         self._create_question(column)
         self.messages = self.messages + \
-            [{"role": "assistant", "content": interview_util.AUKLET_MAPPING.get(str(row[column]), "NA")},]
+            [{"role": "assistant", "content": v1_interview_util.AUKLET_MAPPING.get(str(row[column]), "NA")},]
             
     def _create_question(self, column:str):
-        question = copy.deepcopy(interview_util.MESSAGE_QUESTION_AUKLET)
-        image = interview_util_images.IMAGE_MAPPING_AUKLET[column]
+        question = copy.deepcopy(v1_interview_util.MESSAGE_QUESTION_AUKLET)
+        image = v1_interview_util_images.IMAGE_MAPPING_AUKLET[column]
         print(image)
         question[0]['content'] = question[0]['content'] + image
         self.messages = self.messages + question.copy()
