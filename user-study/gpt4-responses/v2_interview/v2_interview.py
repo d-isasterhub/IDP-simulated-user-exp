@@ -31,22 +31,28 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     if selection not in selection_methods:
         raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
     
+    safe_n = n
+
     if selection == 'first':
         # if we only want the first n rows, we don't need to read the whole file
         df = pd.read_csv(path_to_csv, nrows=n)
+        
     elif selection == 'last':
         df = pd.read_csv(path_to_csv)
         df = df.tail(n)
+        if df.size < n:
+            safe_n = df.size
     else: 
         df = pd.read_csv(path_to_csv)
         df = df.sample(n)
+        if df.size < n:
+            safe_n = df.size
     
     df = df.rename(columns={"Q_8" : "Q_4"})
 
     userprofiles = []
 
-    # TODO: what if n > len(df)?
-    for i in range(n):
+    for i in range(safe_n):
         userprofiles.append(UserProfile(df.iloc[i].squeeze()))
 
     return userprofiles   
