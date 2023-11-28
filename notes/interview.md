@@ -52,7 +52,7 @@ employment status over the last three months?
  
 #### GPT-4 Template Text
 **USER**<br>
-What desccribes your employment statusover the last three month best? Choose from the following options:
+What describes your employment status over the last three month best? Choose from the following options:
 - Working full-time
 - Working part-time
 - Unemployed and looking for work

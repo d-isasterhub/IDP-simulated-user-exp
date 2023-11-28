@@ -34,14 +34,14 @@ class Interview:
         self.df.drop(self.df.columns[[0, 1]], axis=1, inplace=True)
         self.df = self.df.fillna('NA')
         # Change/Delete this
-        self.df = self.df[10:11]
+        self.df = self.df[10:15]
         pd.set_option('display.max_columns', None)
         
         
     def conduct(self):
         answered_questions =  ["Q" + str(i) for i in range(1, 20+1)]
-        unanswered_question = answered_questions.pop(19)
-        self.df['Q20_gpt4'] = self.df.apply(self.get_answer, args = (answered_questions, unanswered_question),axis=1)
+        unanswered_question = answered_questions.pop(4)
+        self.df['Q5_gpt4'] = self.df.apply(self.get_answer, args = (answered_questions, unanswered_question),axis=1)
         self.df.to_csv("out.csv")
         
         
