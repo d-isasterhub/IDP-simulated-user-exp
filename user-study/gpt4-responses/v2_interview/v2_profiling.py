@@ -22,6 +22,14 @@ class Gender(Enum):
     MALE = "male"
     PREFER_NOT_TO_SAY = "unknown"
 
+class Auklets(Enum):
+    """Enum for the 4 bird species"""
+
+    CRESTED = "Crested Auklet"
+    LEAST = "Least Auklet"
+    PARAKEET = "Parakeet Auklet"
+    RHINOCEROS = "Rhinoceros Auklet"
+
 class UserBackground(TypedDict):
     """A class that represents the demographic/domain background of a user"""
 
@@ -37,17 +45,13 @@ class UserBackground(TypedDict):
     # TODO: add experience details (encoded)?
 
 class WarmupAnswers(TypedDict):
-    """A class that represents the answers given by user to warmup questions"""
-
-    # warm-up: features from raw pictures
-    features_la : str
-    features_ra : str
+    """A class that represents the answers given by user to warmup question"""
 
     # warm-up: features from XAI heatmap
-    heatmap_features_ca : str
-    heatmap_features_la : str
-    heatmap_features_pa : str
-    heatmap_features_ra : str
+    features_ca : str
+    features_la : str
+    features_pa : str
+    features_ra : str
 
 
 class UserProfile:
@@ -58,6 +62,9 @@ class UserProfile:
 
     user_background : UserBackground
     warmup_answers : WarmupAnswers
+
+    human_predictions : [Auklets]
+    human_agreement : [str] # maybe int is better? idk
 
     profiling_prompt : str
 
@@ -75,17 +82,18 @@ class UserProfile:
         # TODO: default values for feature descriptions?
 
         self.warmup_answers = {
+            "features_ca" : "",
             "features_la" : "",
-            "features_ra" : "",
-            "heatmap_features_ca" : "",
-            "heatmap_features_la" : "",
-            "heatmap_features_pa" : "",
-            "heatmap_features_ra" : ""
+            "features_pa" : "",
+            "features_ra" : ""
         }
 
+        # beware
+        self.human_predictions = [Auklets.CRESTED] * 20 
+        self.human_agreement = ["7"] * 6
+
     def __init__(self, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
-                 features_la:str, features_ra:str, heatmap_features_ca:str, heatmap_features_la:str, 
-                 heatmap_features_pa:str, heatmap_features_ra:str):
+                 features_ca:str, features_la:str, features_pa:str, features_ra:str):
         """Profile info based on manually given parameters"""
         
         self.user_background = {
@@ -97,13 +105,14 @@ class UserProfile:
         }
 
         self.warmup_answers = {
+            "features_ca" : features_ca,
             "features_la" : features_la,
-            "features_RA" : features_ra,
-            "heatmap_features_ca" : heatmap_features_ca,
-            "heatmap_features_la" : heatmap_features_la,
-            "heatmap_features_pa" : heatmap_features_pa,
-            "heatmap_features_ra" : heatmap_features_ra
+            "features_pa" : features_pa,
+            "features_ra" : features_ra
         }
+
+        self.human_predictions = []
+        self.human_agreement = []
 
     def __init__(self, user_series : pd.Series):
         """Profile info based on a single pandas Series (dataset row)"""
@@ -117,45 +126,56 @@ class UserProfile:
         }
 
         self.warmup_answers = {
-            "features_la" : user_series.at['Warmup_1_LA'],
-            "features_ra" : user_series.at['Warmup_1_RA'],
-            "heatmap_features_ca" : user_series.at['Warmup_2_CA'],
-            "heatmap_features_la" : user_series.at['Warmup_2_LA'],
-            "heatmap_features_pa" : user_series.at['Warmup_2_PA'],
-            "heatmap_features_ra" : user_series.at['Warmup_2_RA']
+            "features_ca" : user_series.at['Warmup_2_CA'],
+            "features_la" : user_series.at['Warmup_2_LA'],
+            "features_pa" : user_series.at['Warmup_2_PA'],
+            "features_ra" : user_series.at['Warmup_2_RA']
         }
 
+        self.human_predictions = []
+        for i in range(20):
+            self.human_predictions.append(user_series.at['Q' + str(i+1)])
+
+        self.human_agreement = []
+        for i in range(6):
+            self.human_agreement.append(user_series.at['Q_' + str(i+1)])
+
+
     def __str__(self) -> str:
-        return "User background : " + pprint.pformat(self.user_background) + "\nWarmup Questions : " + pprint.pformat(self.warmup_answers)
+        return "User background : " + pprint.pformat(self.user_background) + \
+            "\nWarmup Questions : " + pprint.pformat(self.warmup_answers) + \
+            "\nPredictions : " + pprint.pformat(self.human_predictions) + \
+            "\nAgreements : " + pprint.pformat(self.human_agreement)
 
     def profiling_prompt(self, SYSTEM) -> str:
         """Replaces placeholders in profiling prompt with actual profiling info"""
 
-        age_placeholders = ["AGE"]
-        enum_placeholders = ["GENDER", "EMPLOYMENT_STATUS"]
-        bool_placeholders = ["AI_USER", "AI_DEV"]
-        warmup_placeholders = ["FEATURES_LA", "FEATURES_RA", "HEATMAP_FEATURES_CA", "HEATMAP_FEATURES_LA", 
-                        "HEATMAP_FEATURES_PA", "HEATMAP_FEATURES_RA"]
+        placeholders = {
+            'bg_numbers' : ["AGE"],
+            'bg_enums' : ["GENDER", "EMPLOYMENT_STATUS"],
+            'bg_some_or_none' : ["AI_USER", "AI_DEV"],
+            'wu_text' : ["FEATURES_CA", "FEATURES_LA", "FEATURES_PA", "FEATURES_RA"]
+        }
 
         # using replace() would make a copy each time. to avoid this, we work on a list of tokens.
         tokenized_prompt = re.findall(r"[\w']+|[.,!?;]", SYSTEM)
         # print(tokenized_prompt)
 
         def replace_placeholder(p):
-            if p == "AGE":
+            if p in placeholders['bg_numbers']:
                 return str(self.user_background[p.lower()])
-            elif p in enum_placeholders:
+            elif p in placeholders['bg_enums']:
                 return self.user_background[p.lower()].value
-            elif p in bool_placeholders:
-                return "" if self.user_background[p.lower()] else "no" 
-            elif p in warmup_placeholders:
+            elif p in placeholders['bg_some_or_none']:
+                return "some" if self.user_background[p.lower()] else "no" 
+            elif p in placeholders['wu_text']:
                 return self.warmup_answers[p.lower()]
             else:
                 return p
 
         tokenized_prompt = list(map(replace_placeholder, tokenized_prompt))
         PROFILING = " ".join(tokenized_prompt)
-        PROFILING = re.sub(r'\s+([?.!])', r'\1', PROFILING)
+        PROFILING = re.sub(r'\s+([?.!,])', r'\1', PROFILING)
 
         self.profiling_prompt = PROFILING
         return PROFILING

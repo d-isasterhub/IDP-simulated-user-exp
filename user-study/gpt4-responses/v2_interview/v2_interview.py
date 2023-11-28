@@ -29,7 +29,7 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     selection_methods = ['random', 'first', 'last']
 
     if selection not in selection_methods:
-        raise ValueError("Invalid sim type. Expected one of: %s" % selection_methods)
+        raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
     
     if selection == 'first':
         # if we only want the first n rows, we don't need to read the whole file
@@ -40,6 +40,8 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     else: 
         df = pd.read_csv(path_to_csv)
         df = df.sample(n)
+    
+    df = df.rename(columns={"Q_8" : "Q_4"})
 
     userprofiles = []
 
