@@ -39,6 +39,7 @@ class Interview:
         
         
     def conduct(self):
+        '''Outdated. See v2 instead.'''
         answered_questions =  ["Q" + str(i) for i in range(1, 20+1)]
         unanswered_question = answered_questions.pop(4)
         self.df['Q5_gpt4'] = self.df.apply(self.get_answer, args = (answered_questions, unanswered_question),axis=1)
@@ -46,6 +47,7 @@ class Interview:
         
         
     def get_answer(self, row, given_columns:list, open_question:str):
+        '''Outdated. See v2 instead.'''
         query = self.create_template(row, given_columns, open_question)
         print(query)
         response = openai.ChatCompletion.create(
@@ -58,6 +60,7 @@ class Interview:
         
         
     def create_template(self, row, given_columns:list, open_question:str):
+        '''Outdated. See v2 instead.'''
         self.messages = v1_interview_util.MESSAGE_BASE_SYS +\
             v1_interview_util.MESSAGE_BASE_AGE + [{"role": "assistant", "content": str(row['D1'])}] +\
             v1_interview_util.MESSAGE_BASE_SEX +\
@@ -86,6 +89,7 @@ class Interview:
         
     
     def _replace(self, string:str, dictionary:dict):
+        '''Outdated. See v2 instead.'''
         result = string
         for number, _string in dictionary.items():
             result = result.replace(number, _string)
@@ -93,11 +97,13 @@ class Interview:
     
     
     def _create_question_and_answer(self, row, column:str):
+        '''Outdated. See v2 instead.'''
         self._create_question(column)
         self.messages = self.messages + \
             [{"role": "assistant", "content": v1_interview_util.AUKLET_MAPPING.get(str(row[column]), "NA")},]
             
     def _create_question(self, column:str):
+        '''Outdated. See v2 instead.'''
         question = copy.deepcopy(v1_interview_util.MESSAGE_QUESTION_AUKLET)
         image = v1_interview_util_images.IMAGE_MAPPING_AUKLET[column]
         print(image)
