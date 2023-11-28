@@ -10,18 +10,10 @@ library(tidyverse)
 library(patchwork)
 ```
 ### Fetch data
-#### Read CSV File
+#### Read CSV File and convert to `data.table`
 ```{r}
-survey_df <- read.csv("from_yao/SimulatedUsers-Final_August4.csv")
-# survey_df
+survey_dt <- data.table(read.csv("SimulatedUsers-Final_August4.csv"))[-(1:2)]
 ```
-
-#### Convert to `data.table`
-```{r}
-dt <- data.table(survey_df)
-survey_dt <- dt[-(1:2)]
-# summary(survey_dt)
-``` 
 
 ### Data Wrangling
 #### StartDate, EndDate and RecordedDate are dates
@@ -46,20 +38,21 @@ survey_dt[, c("X","Unnamed..0"):=NULL]
 survey_dt$D1 <- as.integer(survey_dt$D1)
 setnames(survey_dt, "D1", "Age")
 
-sex_options <- c("F", "M", "X")
+sex_options <- c("Female", "Male", "Prefer_not_to_say")
 survey_dt$D2 <- factor(survey_dt$D2, levels = c("1", "2", "3"), labels = sex_options)
-setnames(survey_dt, "D2", "Sex")
+setnames(survey_dt, "D2", "Gender")
 
 # Mapping:
 # 2 Student
 # 3 Freelancer
-# 4 Unemployed/Other
+# 4 Unemployed
 # 5 Part-time
 # 6 Full-time
-# 8 Unemployed/Other
-employment_options <- c()
+# 8 Other
+# 1? Retired
+employment_options <- c("Retired", "Student", "Freelancer", "Unemployed", "Part_time", "Full_time", "Other")
 #survey_dt$D2 <- as.factor(survey_dt$D2)
-survey_dt$D3 <- as.factor(survey_dt$D3)
+survey_dt$D3 <- factor(survey_dt$D3, levels = c("1", "2", "3", "4", "5", "6", "8"), labels = employment_options)
 setnames(survey_dt, "D3", "Employment")
 
 ```
@@ -80,7 +73,19 @@ mc_binary_encode <- function(s) {
 
 survey_dt$D4 <- mc_binary_encode(survey_dt$D4)
 survey_dt <- survey_dt %>% separate(D4, c('No_Experience', 'AI_User', 'AI_Dev'))
+setnames(survey_dt, "D5", "AI_Exp_Details")
 
+```
+
+#### Warm-up questions
+```{r}
+setnames(survey_dt, "Intro.1", "Warmup_1_LA")
+setnames(survey_dt, "Q158", "Warmup_1_RA")
+
+setnames(survey_dt, "Intro.1.1", "Warmup_2_RA")
+setnames(survey_dt, "Q159", "Warmup_2_LA")
+setnames(survey_dt, "Q160", "Warmup_2_PA")
+setnames(survey_dt, "Q161", "Warmup_2_CA")
 ```
 
 #### Single choice predictions - Birds
@@ -101,11 +106,11 @@ survey_dt <- survey_dt %>% mutate(across(c(Q1.1, Q2.1, Q3.1, Q4.1, Q5.1, Q6.1, Q
 #### Demographics
 ##### Ages
 ```{r}
-ggplot(survey_dt, aes(x = Age)) + geom_bar()
+ggplot(survey_dt, aes(x = Age)) + geom_bar() + geom_vline(xintercept = mean(survey_dt$Age), color="blue")
 ```
 ##### Sex
 ```{r}
-ggplot(survey_dt, aes(x = Sex)) + geom_bar()
+ggplot(survey_dt, aes(x = Gender)) + geom_bar()
 ```
 
 ##### Employment
@@ -125,6 +130,8 @@ ggplot(survey_dt, aes(x = Employment)) + geom_bar()
 ##### Prior Experience
 ```{r}
 ggplot(survey_dt, aes(x = AI_User, y = AI_Dev)) + geom_point() + geom_jitter()
+agg_df <- aggregate(survey_dt$AI_User, by=list(survey_dt$AI_User, survey_dt$AI_Dev), FUN=length) %>% rename(AI_User=Group.1, AI_Dev=Group.2)
+agg_df
 ```
 
 #### Bird Species
@@ -164,4 +171,9 @@ sub1.1_p + sub2.1_p + sub3.1_p + sub4.1_p + sub5.1_p + sub6.1_p + plot_layout(nc
 #### Export
 ```{r}
 write.csv(survey_dt, "cleaned_simulatedusers.csv")
+```
+
+### Correlations
+```{r}
+
 ```
