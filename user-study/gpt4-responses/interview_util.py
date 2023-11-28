@@ -25,6 +25,9 @@ MESSAGE_BASE_MLXP2 = [
     {"role": "user", "content": interview_util_prompts.USER_ML_EXPERIENCE_2},
 ]
 
+# ^ One message: Profiling (maybe in the System part "Who is the assistant"; alternatively: One Assistant message (2-3 sentences))
+
+# Omit WARMUP1, Check objective description if there is something we still need
 MESSAGE_BASE_WARMUP1 = [
     {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_1},
     {"role": "user", "content": interview_util_prompts.OBJECTIVE_DESCRIPTION_2},
@@ -68,6 +71,8 @@ MESSAGE_QUESTION_AUKLET = [
         ]
     }
 ]
+
+# TODO: Scoring Questions
 
 SEX_MAPPING = {'1' : 'Female', '2': 'Male'}
 

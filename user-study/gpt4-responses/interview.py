@@ -77,8 +77,8 @@ class Interview:
             interview_util.MESSAGE_BASE_UNDERSTANDING +\
                 [{"role": "assistant", "content": self._replace(str(row['D4']), interview_util.UNDERSTANDING_MAPPING)},] 
                 
-        for column in given_columns:
-            self._create_question_and_answer(row, column)
+        # for column in given_columns:
+        #     self._create_question_and_answer(row, column)
             
         self._create_question(open_question)
         
