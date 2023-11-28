@@ -21,8 +21,7 @@ response = openai.ChatCompletion.create(
         get_msg(role="system", prompt=PROFILING) +\
         get_msg_with_image(role="user", prompt=USER, image="3-Crested.png")
 )
-
-actual_response = response["choices"][0]["message"]["content"]
+actual_response = response["choices"][0]["message"]["content"] # have a string
 
 # Question-Image mapping:
 # 1. 0-Crested.png
