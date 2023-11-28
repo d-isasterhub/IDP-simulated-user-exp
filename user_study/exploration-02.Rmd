@@ -26,15 +26,60 @@ survey_dt <- dt[-(1:2)]
 ### Data Wrangling
 #### StartDate, EndDate and RecordedDate are dates
 ```{r}
-survey_dt$StartDate <- as.Date(survey_dt$StartDate)
+survey_dt$StartDate <- as.POSIXct(survey_dt$StartDate, format="%Y-%m-%d %H:%M:%S")
+survey_dt$StartDate <- as.POSIXct(survey_dt$EndDate, format="%Y-%m-%d %H:%M:%S")
+survey_dt$StartDate <- as.POSIXct(survey_dt$RecordedDate, format="%Y-%m-%d %H:%M:%S")
+```
 
+#### Study statistics
+```{r}
+survey_dt$Duration..in.seconds. <- as.integer(survey_dt$Duration..in.seconds.)
+```
+
+#### Remove columns
+```{r}
+survey_dt[, c("X","Unnamed..0"):=NULL]
 ```
 
 #### Demographic Questions
 ```{r}
 survey_dt$D1 <- as.integer(survey_dt$D1)
-survey_dt$D2 <- as.factor(survey_dt$D2)
+setnames(survey_dt, "D1", "Age")
+
+sex_options <- c("F", "M", "X")
+survey_dt$D2 <- factor(survey_dt$D2, levels = c("1", "2", "3"), labels = sex_options)
+setnames(survey_dt, "D2", "Sex")
+
+# Mapping:
+# 2 Student
+# 3 Freelancer
+# 4 Unemployed/Other
+# 5 Part-time
+# 6 Full-time
+# 8 Unemployed/Other
+employment_options <- c()
+#survey_dt$D2 <- as.factor(survey_dt$D2)
 survey_dt$D3 <- as.factor(survey_dt$D3)
+setnames(survey_dt, "D3", "Employment")
+
+```
+
+##### Previous Experience
+```{r}
+tmp <- survey_dt$D4
+
+mc_binary_encode <- function(s) { 
+      no_exp <- grepl('1', s, fixed=TRUE)
+      user <- grepl('2', s, fixed=TRUE)
+      dev <- grepl('3', s, fixed=TRUE)
+      
+      res <- paste(no_exp, user, dev)
+      
+      return(res)
+}
+
+survey_dt$D4 <- mc_binary_encode(survey_dt$D4)
+survey_dt <- survey_dt %>% separate(D4, c('No_Experience', 'AI_User', 'AI_Dev'))
 
 ```
 
@@ -56,17 +101,30 @@ survey_dt <- survey_dt %>% mutate(across(c(Q1.1, Q2.1, Q3.1, Q4.1, Q5.1, Q6.1, Q
 #### Demographics
 ##### Ages
 ```{r}
-ggplot(survey_dt, aes(x = D1)) + geom_bar()
+ggplot(survey_dt, aes(x = Age)) + geom_bar()
+```
+##### Sex
+```{r}
+ggplot(survey_dt, aes(x = Sex)) + geom_bar()
 ```
 
 ##### Employment
 ```{r}
-ggplot(survey_dt, aes(x = D3)) + geom_bar()
+ggplot(survey_dt, aes(x = Employment)) + geom_bar()
+
+# Mapping:
+# 2 Student
+# 3 Freelancer
+# 4 Unemployed/Other
+# 5 Part-time
+# 6 Full-time
+# 8 Unemployed/Other
+
 ```
 
 ##### Prior Experience
 ```{r}
-ggplot(survey_dt, aes(x = D4)) + geom_bar()
+ggplot(survey_dt, aes(x = AI_User, y = AI_Dev)) + geom_point() + geom_jitter()
 ```
 
 #### Bird Species
@@ -101,4 +159,9 @@ sub4.1_p <-ggplot(survey_dt, aes(x = Q_8.1)) + geom_bar() + ggtitle("I would lik
 sub5.1_p <-ggplot(survey_dt, aes(x = Q_5.1)) + geom_bar() + ggtitle("The explanations were useful and\nhelped me understand the model's\nreasoning.") + theme(plot.title = element_text(size=8))
 sub6.1_p <-ggplot(survey_dt, aes(x = Q_6.1)) + geom_bar() + ggtitle("I believe that I could provide an\nexplanation similar to the model's\nexplanation for a new image.") + theme(plot.title = element_text(size=8))
 sub1.1_p + sub2.1_p + sub3.1_p + sub4.1_p + sub5.1_p + sub6.1_p + plot_layout(ncol = 3)
+```
+
+#### Export
+```{r}
+write.csv(survey_dt, "cleaned_simulatedusers.csv")
 ```
