@@ -1,8 +1,10 @@
 from enum import Enum
 import pandas as pd
 from typing import TypedDict
+from collections import defaultdict
 import pprint
 import re
+import itertools
 
 class Employment(Enum):
     """Enum for the employment options"""
@@ -48,10 +50,10 @@ class WarmupAnswers(TypedDict):
     """A class that represents the answers given by user to warmup question"""
 
     # warm-up: features from XAI heatmap
-    features_ca : str
-    features_la : str
-    features_pa : str
-    features_ra : str
+    heatmap_features_ca : str
+    heatmap_features_la : str
+    heatmap_features_pa : str
+    heatmap_features_ra : str
 
 
 class UserProfile:
@@ -63,8 +65,12 @@ class UserProfile:
     user_background : UserBackground
     warmup_answers : WarmupAnswers
 
-    human_predictions : [Auklets]
-    human_agreement : [str] # maybe int is better? idk
+    # defaultdicts return a default value if accessed by a key that doesn't exist 
+    # -> useful for csv output
+    human_predictions : defaultdict[int, Auklets]
+    human_agreementss : defaultdict[int, str] # maybe (int, int) is better? idk
+    llm_predictions : defaultdict[int, str]
+    llm_agreements : defaultdict[int, str]
 
     profiling_prompt : str
 
@@ -82,15 +88,17 @@ class UserProfile:
         # TODO: default values for feature descriptions?
 
         self.warmup_answers = {
-            "features_ca" : "",
-            "features_la" : "",
-            "features_pa" : "",
-            "features_ra" : ""
+            "heatmap_features_ca" : "",
+            "heatmap_features_la" : "",
+            "heatmap_features_pa" : "",
+            "heatmap_features_ra" : ""
         }
 
-        # beware
-        self.human_predictions = [Auklets.CRESTED] * 20 
-        self.human_agreement = ["7"] * 6
+        # beware, these are dummy values
+        self.human_predictions = defaultdict(lambda: "NA")
+        self.human_agreements = defaultdict(lambda: "NA")
+        self.llm_predictions = defaultdict(lambda: "NA")
+        self.llm_agreements = defaultdict(lambda: "NA")
 
     def __init__(self, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
                  features_ca:str, features_la:str, features_pa:str, features_ra:str):
@@ -105,14 +113,16 @@ class UserProfile:
         }
 
         self.warmup_answers = {
-            "features_ca" : features_ca,
-            "features_la" : features_la,
-            "features_pa" : features_pa,
-            "features_ra" : features_ra
+            "heatmap_features_ca" : features_ca,
+            "heatmap_features_la" : features_la,
+            "heatmap_features_pa" : features_pa,
+            "heatmap_features_ra" : features_ra
         }
 
-        self.human_predictions = []
-        self.human_agreement = []
+        self.human_predictions = defaultdict(lambda: "NA")
+        self.human_agreements = defaultdict(lambda: "NA")
+        self.llm_predictions = defaultdict(lambda: "NA")
+        self.llm_agreements = defaultdict(lambda: "NA")
 
     def __init__(self, user_series : pd.Series):
         """Profile info based on a single pandas Series (dataset row)"""
@@ -126,39 +136,42 @@ class UserProfile:
         }
 
         self.warmup_answers = {
-            "features_ca" : user_series.at['Warmup_2_CA'],
-            "features_la" : user_series.at['Warmup_2_LA'],
-            "features_pa" : user_series.at['Warmup_2_PA'],
-            "features_ra" : user_series.at['Warmup_2_RA']
+            "heatmap_features_ca" : user_series.at['Warmup_2_CA'],
+            "heatmap_features_la" : user_series.at['Warmup_2_LA'],
+            "heatmap_features_pa" : user_series.at['Warmup_2_PA'],
+            "heatmap_features_ra" : user_series.at['Warmup_2_RA']
         }
+        
+        self.human_predictions = defaultdict(lambda: "NA")
+        self.human_agreements = defaultdict(lambda: "NA")
+        self.llm_predictions = defaultdict(lambda: "NA")
+        self.llm_agreements = defaultdict(lambda: "NA")
 
-        self.human_predictions = []
         for i in range(20):
-            self.human_predictions.append(user_series.at['Q' + str(i+1)])
+            self.human_predictions[i+1] = user_series.at['Q' + str(i+1)]
 
-        self.human_agreement = []
         for i in range(6):
-            self.human_agreement.append(user_series.at['Q_' + str(i+1)])
+            self.human_agreements[i+1]= user_series.at['Q_' + str(i+1)]
 
 
     def __str__(self) -> str:
         return "User background : " + pprint.pformat(self.user_background) + \
             "\nWarmup Questions : " + pprint.pformat(self.warmup_answers) + \
             "\nPredictions : " + pprint.pformat(self.human_predictions) + \
-            "\nAgreements : " + pprint.pformat(self.human_agreement)
+            "\nAgreements : " + pprint.pformat(self.human_agreements)
 
-    def profiling_prompt(self, SYSTEM) -> str:
+    def personalize_prompt(self, SYSTEM, profiling=False) -> str:
         """Replaces placeholders in profiling prompt with actual profiling info"""
 
         placeholders = {
             'bg_numbers' : ["AGE"],
             'bg_enums' : ["GENDER", "EMPLOYMENT_STATUS"],
             'bg_some_or_none' : ["AI_USER", "AI_DEV"],
-            'wu_text' : ["FEATURES_CA", "FEATURES_LA", "FEATURES_PA", "FEATURES_RA"]
+            'wu_text' : ["HEATMAP_FEATURES_CA", "HEATMAP_FEATURES_LA", "HEATMAP_FEATURES_PA", "HEATMAP_FEATURES_RA"]
         }
 
         # using replace() would make a copy each time. to avoid this, we work on a list of tokens.
-        tokenized_prompt = re.findall(r"[\w']+|[.,!?;]", SYSTEM)
+        tokenized_prompt = re.findall(r"[\w']+|[.,!:?;-]|[\n]", SYSTEM)
         # print(tokenized_prompt)
 
         def replace_placeholder(p):
@@ -175,7 +188,26 @@ class UserProfile:
 
         tokenized_prompt = list(map(replace_placeholder, tokenized_prompt))
         PROFILING = " ".join(tokenized_prompt)
-        PROFILING = re.sub(r'\s+([?.!,])', r'\1', PROFILING)
+        PROFILING = re.sub(r'\s+([?.!,:])', r'\1', PROFILING) # remove whitespaces before ?.!,
 
-        self.profiling_prompt = PROFILING
+        if profiling:
+            self.profiling_prompt = PROFILING
         return PROFILING
+    
+    def to_csv_string(self):
+        # columns 1 - 9
+        infos = [str(self.user_background['age']), self.user_background['gender'].name,
+            self.user_background['employment_status'].name,
+            str(self.user_background['ai_user']), str(self.user_background['ai_dev']), 
+            self.warmup_answers["heatmap_features_ca"], self.warmup_answers["heatmap_features_la"], 
+            self.warmup_answers["heatmap_features_pa"], self.warmup_answers["heatmap_features_ra"]]
+        
+        human_preds = [self.human_predictions[i] for i in range(1, 21)] # columns 10-29
+        human_agree = [str(self.human_agreements[i]) for i in range(1, 7)] # columns 30-35
+        LLM_preds = [self.llm_predictions[i] for i in range(1, 21)] # columns 36-55
+        LLM_agree = [str(self.llm_agreements[i]) for i in range(1, 7)] # columns 56-61
+
+        # print(LLM_preds)
+        csv_string = ",".join(itertools.chain(infos, human_preds, human_agree, LLM_preds, LLM_agree))
+        return csv_string
+
