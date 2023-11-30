@@ -59,27 +59,6 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
 
     return userprofiles   
 
-# Question-Image mapping:
-# 1. 0-Crested.png
-# 2. 1-Crested.png
-# 3. 2-Crested.png
-# 4. 3-Crested.png
-# 5. 4-Crested.png
-# 6. 15-Least.png
-# 7. 16-Least.png
-# 8. 17-Least.png
-# 9. 18-Least.png
-# 10. 19-Least.png
-# 11. 31-Parakeet.png
-# 12. 32-Parakeet.png
-# 13. 37-Parakeet.png
-# 14. 38-Parakeet.png
-# 15. 47-Parakeet.png
-# 16. 50-Rhinoceros.png
-# 17. 51-Rhinoceros.png
-# 18. 53-Rhinoceros.png
-# 19. 54-Rhinoceros.png
-# 20. 55-Rhinoceros.png
 
 def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
     """
