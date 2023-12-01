@@ -1,6 +1,7 @@
 import openai
 import pandas as pd
 import random
+import os
 
 from v2_profiling import (
     UserProfile,
@@ -16,6 +17,8 @@ from v2_interview_util_prompts import (
     SYSTEM,
     USER
 )
+
+# openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     """Constructs n UserProfiles based on user data given in a .csv file
@@ -81,17 +84,19 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
     f = open("out/interview_protocol.txt", mode="a+")
     f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
     f.write(user.profiling_prompt)
+    f.write("\n")
     f.write(QUESTION)
+    f.write("\n")
 
-    #response = openai.ChatCompletion.create(
-    #    model = "gpt-4-vision-preview",
-    #    max_tokens = 300,
-    #    messages = 
-    #        get_msg(role="system", prompt=user.profiling_prompt) +\
-    #        get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
-    #)
-    #actual_response = response["choices"][0]["message"]["content"] # have a string
-    actual_response = "dummy_response"
+    response = openai.ChatCompletion.create(
+        model = "gpt-4-vision-preview",
+        max_tokens = 300,
+        messages = 
+            get_msg(role="system", prompt=user.profiling_prompt) +\
+            get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
+    )
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    # actual_response = "dummy_response"
     f.write(actual_response)
     f.write("\n\n")
     f.close()

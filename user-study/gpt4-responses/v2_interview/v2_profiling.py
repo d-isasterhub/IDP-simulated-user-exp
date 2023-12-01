@@ -68,7 +68,7 @@ class UserProfile:
     # defaultdicts return a default value if accessed by a key that doesn't exist 
     # -> useful for csv output
     human_predictions : defaultdict[int, Auklets]
-    human_agreementss : defaultdict[int, str] # maybe (int, int) is better? idk
+    human_agreements : defaultdict[int, str] # maybe (int, int) is better? idk
     llm_predictions : defaultdict[int, str]
     llm_agreements : defaultdict[int, str]
 
