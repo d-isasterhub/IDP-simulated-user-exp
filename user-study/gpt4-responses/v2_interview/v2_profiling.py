@@ -148,10 +148,10 @@ class UserProfile:
         self.llm_agreements = defaultdict(lambda: "NA")
 
         for i in range(20):
-            self.human_predictions[i+1] = user_series.at['Q' + str(i+1)]
+            self.human_predictions[i+1] = str(user_series.at['Q' + str(i+1)])
 
         for i in range(6):
-            self.human_agreements[i+1]= user_series.at['Q_' + str(i+1)]
+            self.human_agreements[i+1]= str(user_series.at['Q_' + str(i+1)])
 
 
     def __str__(self) -> str:
@@ -207,7 +207,6 @@ class UserProfile:
         LLM_preds = [self.llm_predictions[i] for i in range(1, 21)] # columns 36-55
         LLM_agree = [str(self.llm_agreements[i]) for i in range(1, 7)] # columns 56-61
 
-        # print(LLM_preds)
         csv_string = ",".join(itertools.chain(infos, human_preds, human_agree, LLM_preds, LLM_agree))
         return csv_string
 
