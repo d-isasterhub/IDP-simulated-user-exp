@@ -1,4 +1,5 @@
 import openai
+import os
 import pandas as pd
 import random
 import os
@@ -144,6 +145,7 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     
     f_results.close()
 
-simulate_interviews()
+# openai.api_key = os.environ["OPENAI_API_KEY"]
+simulate_interviews(number_users=25, number_questions=4)
 
  

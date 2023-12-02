@@ -16,4 +16,5 @@ USER = "Attached is an image that consists of two sub-images. The top of the giv
     "- Crested Auklet\n"\
     "- Least Auklet\n"\
     "- Parakeet Auklet\n"\
-    "- Rhinoceros Auklet"
+    "- Rhinoceros Auklet\n"\
+    "Answer with the bird name only."

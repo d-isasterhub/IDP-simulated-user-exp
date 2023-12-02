@@ -41,6 +41,7 @@ def get_msg_with_image(role:str, prompt:str, image:str):
     '''
     _role_check(role)
     img_url = "https://github.com/d-isasterhub/IDP-simulated-user-exp/blob/main/images/" + image + "?raw=true"
+    print(img_url)
     msg = [{"role": role, "content": [
         {
             "type": "text", 
