@@ -81,26 +81,27 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
     QUESTION = user.personalize_prompt(USER)
-    
-    f = open("out/interview_protocol.txt", mode="a+")
-    f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
-    f.write(user.profiling_prompt)
-    f.write("\n")
-    f.write(QUESTION)
-    f.write("\n")
 
-    response = openai.ChatCompletion.create(
-        model = "gpt-4-vision-preview",
-        max_tokens = 300,
-        messages = 
-            get_msg(role="system", prompt=user.profiling_prompt) +\
-            get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
-    )
-    actual_response = response["choices"][0]["message"]["content"] # have a string
-    # actual_response = "dummy_response"
-    f.write(actual_response)
-    f.write("\n\n")
-    f.close()
+    # Get gpt-4 response and add the question + answer in the protocol
+    with open("out/interview_protocol.txt", mode="a+") as f:
+        f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
+        f.write(user.profiling_prompt)
+        f.write("\n")
+        f.write(QUESTION)
+        f.write("\n")
+
+        response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 300,
+            messages = 
+                get_msg(role="system", prompt=user.profiling_prompt) +\
+                get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
+        )
+        actual_response = response["choices"][0]["message"]["content"] # have a string
+        
+        f.write(actual_response)
+        f.write("\n\n")
+
     return actual_response
 
 
@@ -131,19 +132,18 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     profiles: [UserProfile] = create_user_profiles("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select)
     
     # simulate interview for each user and question
-    f_results = open("out/simulated_interview_results.csv", mode="a")
-    
-    for user_num, user in enumerate(profiles):
+    with open("out/simulated_interview_results.csv", mode="a") as f_results:
+        for user_num, user in enumerate(profiles):
         
-        for (index, q_path) in question_paths:
-            user.personalize_prompt(SYSTEM, profiling=True)
-            llm_response = single_interview(user, q_path, user_num, index)
-            user.llm_predictions[index] = llm_response
-
-        f_results.write("\n")
-        f_results.write(user.to_csv_string())
+            for (index, q_path) in question_paths:
+                user.personalize_prompt(SYSTEM, profiling=True)
+                llm_response = single_interview(user, q_path, user_num, index)
+                user.llm_predictions[index] = llm_response
+                
+            f_results.write("\n")
+            f_results.write(user.to_csv_string())
     
-    f_results.close()
+    
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 simulate_interviews(number_users=25, number_questions=4)
