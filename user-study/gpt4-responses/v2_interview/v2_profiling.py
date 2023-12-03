@@ -35,6 +35,9 @@ class Auklets(Enum):
 class UserBackground(TypedDict):
     """A class that represents the demographic/domain background of a user"""
 
+    # id
+    id : int
+
     # general demographic info
     age : int
     gender : Gender
@@ -78,6 +81,7 @@ class UserProfile:
         """Profile filled with default values (average/most common values)"""
 
         self.user_background = {
+            "id" : 0,
             "age" : 30,
             "gender" : Gender.FEMALE,
             "employment_status" : Employment.FULL_TIME,
@@ -100,11 +104,12 @@ class UserProfile:
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
 
-    def __init__(self, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
+    def __init__(self, id:int, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
                  features_ca:str, features_la:str, features_pa:str, features_ra:str):
         """Profile info based on manually given parameters"""
         
         self.user_background = {
+            "id" : id,
             "age" : age,
             "gender" : gender,
             "employment_status" : employment_status,
@@ -128,6 +133,7 @@ class UserProfile:
         """Profile info based on a single pandas Series (dataset row)"""
         
         self.user_background = {
+            "id" : user_series.at['id'],
             "age" : user_series.at['Age'],
             "gender" : Gender[user_series.at['Gender'].upper()],
             "employment_status" : Employment[user_series.at['Employment'].upper()],
@@ -209,4 +215,8 @@ class UserProfile:
 
         csv_string = ",".join(itertools.chain(infos, human_preds, human_agree, LLM_preds, LLM_agree))
         return csv_string
+    
+    def get_LLM_predictions(self):
+        LLM_preds = [self.llm_predictions[i] for i in range(1, 21)]
+        return LLM_preds
 
