@@ -11,7 +11,8 @@ from v2_profiling import (
 
 from v2_interview_util import (
     get_msg,
-    get_msg_with_image
+    get_msg_with_image,
+    save_result_df
 )
 
 from v2_interview_util_prompts import (
@@ -54,6 +55,7 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
         if df.size < n:
             safe_n = df.size
     
+    df['id'] = df.index
     df = df.rename(columns={"Q_8" : "Q_4"})
 
     userprofiles = []
@@ -132,20 +134,46 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     profiles: [UserProfile] = create_user_profiles("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select)
     
     # simulate interview for each user and question
-    with open("out/simulated_interview_results.csv", mode="a") as f_results:
-        for user_num, user in enumerate(profiles):
-        
-            for (index, q_path) in question_paths:
+    results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+
+    # TODO: this could be prettier
+    birds = [Auklets.CRESTED.value, Auklets.LEAST.value, Auklets.PARAKEET.value, Auklets.RHINOCEROS.value]
+    birds = [bird.lower() for bird in birds]
+
+    for user_num, user in enumerate(profiles):
+
+        user_id = user.user_background['id']
+
+        # if the user does not already have a row in the results data frame, create a new one
+        if user_id not in list(results_df.index):
+            print(user_id)
+            results_df.loc[user_id] = 'NA'
+
+        # request gpt-4 responses for not yet (properly) answered questions
+        for (index, q_path) in question_paths:
+            question = "LLM_Q" + str(index) # TODO: will have to change this probably
+            print(results_df.at[user_id, question])
+            if results_df.at[user_id, question].lower() not in birds:
                 user.personalize_prompt(SYSTEM, profiling=True)
-                llm_response = single_interview(user, q_path, user_num, index)
-                user.llm_predictions[index] = llm_response
-                
-            f_results.write("\n")
-            f_results.write(user.to_csv_string())
+                results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+
+    # saving the result dataframe again
+    save_result_df(results_df)
+
+    # with open("out/simulated_interview_results.csv", mode="a") as f_results:
+
+    #     for user_num, user in enumerate(profiles): 
+        
+    #         for (index, q_path) in question_paths:
+    #             user.personalize_prompt(SYSTEM, profiling=True) 
+    #             llm_response = single_interview(user, q_path, user_num, index)
+    #             user.llm_predictions[index] = llm_response
+
+    #         f_results.write("\n")
+    #         f_results.write(user.to_csv_string())
+
     
     
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-simulate_interviews(number_users=25, number_questions=4)
-
- 
+simulate_interviews(number_users=5, number_questions=4, user_select='random')
