@@ -1,4 +1,5 @@
 # Imports
+import pandas as pd
 
 
 # Utils
@@ -53,6 +54,16 @@ def get_msg_with_image(role:str, prompt:str, image:str):
         }
     ]}]
     return msg
+
+
+def check_answer_exists():
+    pass
+
+
+def save_result_df(df:pd.DataFrame):
+    df.sort_values(by=['id'], inplace=True)
+    df.reset_index()
+    df.to_csv('out/simulated_interview_results.csv', na_rep='NA')
     
 
 def _role_check(role:str):
