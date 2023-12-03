@@ -10,7 +10,7 @@ from v2_interview_util import (
 )
 
 # Current folder: IDP-simulated-user-exp\user-study\gpt4-responses\v2_interview
-# Execute: pytest tests 
+# Execute: pytest -vv tests 
 
 def test_test():
     assert True
