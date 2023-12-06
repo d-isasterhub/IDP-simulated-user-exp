@@ -1,0 +1,97 @@
+---
+title: "v2_interview_analysis"
+author: "Isabel Schorr"
+date: "2023-12-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+install.packages("data.table")
+install.packages("magrittr")
+install.packages("ggplot2")
+install.packages("tidyr")
+```
+
+```{r libraries, include = FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(tidyr)
+```
+
+## Data Tables
+
+TODO
+
+```{r Data Table}
+human <- c('Q16', 'Q17', 'Q18', 'Q19')
+llm <- c('id', 'LLM_Q16', 'LLM_Q17', 'LLM_Q18', 'LLM_Q19')
+human_dt <- fread("../data-exploration-cleanup/cleaned_simulatedusers.csv",
+                  select = human)
+llm_dt <- fread("../gpt4-responses/v2_interview/out/simulated_interview_results.csv", 
+                select = llm)
+colnames(human_dt) <- paste0("HUMAN_", colnames((human_dt)))
+human_dt[, 'id' := seq(0, nrow(human_dt)-1)]
+
+dt <- merge(human_dt, llm_dt, all = FALSE, by = 'id')
+```
+
+## Plots
+
+```{r Tyding}
+melt_dt <- dt %>% melt(
+  id.vars = 'id',
+  variable.name = 'question',
+  value.name = 'answer'
+) %>% separate(
+  col = 'question',
+  into = c('user', 'question')
+)
+
+true_answers <- fread("../gpt4-responses/v2_interview/prediction_questions.csv")
+
+#melt_dt$question[melt_dt$question == 'Q1'] <- 'Q1: Crested'
+#melt_dt$question[melt_dt$question == 'Q6'] <- 'Q1: Crested'
+#melt_dt$question[melt_dt$question == 'Q11'] <- 'Q1: Crested'
+#melt_dt$question[melt_dt$question == 'Q16'] <- 'Q1: Crested'
+```
+
+```{r Tyding}
+melt_dt <- dt %>% melt(
+  id.vars = 'id',
+  variable.name = 'question',
+  value.name = 'answer'
+) %>% separate(
+  col = 'question',
+  into = c('user', 'question')
+)
+
+true_answers <- fread("../gpt4-responses/v2_interview/prediction_questions.csv")
+true_answers[, question := paste0("Q", ID)]
+
+sim_dt <- merge(melt_dt, true_answers, all = FALSE, by = 'question')
+sim_dt <- unite(sim_dt, col = question, question, correct_answer, sep = ": ")
+```
+
+```{r Plots}
+# Correct answers:
+# Q1 : Crested
+# Q6 : Least
+# Q11 : Parakeet
+# Q16 : Rhinoceros
+p <- sim_dt %>% ggplot(aes(answer, fill = user)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(.~question) +
+  theme(axis.text.x = element_text(angle =45, hjust = 1))
+p
+```
+
+```{r Save png}
+png("4-questions.png")
+print(p)
+dev.off()
+```
+
+

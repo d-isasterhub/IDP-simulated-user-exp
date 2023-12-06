@@ -155,7 +155,10 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 user.personalize_prompt(SYSTEM, profiling=True)
-                results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+                try:
+                    results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+                except:
+                    print("Response generation failed")
 
     # saving the result dataframe again
     save_result_df(results_df)
@@ -176,4 +179,4 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-simulate_interviews(number_users=5, number_questions=4, user_select='random')
+simulate_interviews(number_users=50, number_questions=20, user_select='random')
