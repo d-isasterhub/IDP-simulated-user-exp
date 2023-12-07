@@ -22,8 +22,8 @@ from v2_interview_util_prompts import (
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
-def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
-    """Constructs n UserProfiles based on user data given in a .csv file
+def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
+    """Reads data of max(n, length of csv file) users from given CSV file into DataFrame.
         
     Args:
         path_to_csv (str) : path to a csv file with user data
@@ -38,8 +38,6 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     if selection not in selection_methods:
         raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
     
-    safe_n = n
-
     if selection == 'first':
         # if we only want the first n rows, we don't need to read the whole file
         df = pd.read_csv(path_to_csv, nrows=n)
@@ -47,23 +45,25 @@ def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
     elif selection == 'last':
         df = pd.read_csv(path_to_csv)
         df = df.tail(n)
-        if df.size < n:
-            safe_n = df.size
     else: 
         df = pd.read_csv(path_to_csv)
         df = df.sample(n)
-        if df.size < n:
-            safe_n = df.size
     
     df['id'] = df.index
     df = df.rename(columns={"Q_8" : "Q_4"})
 
-    userprofiles = []
-
-    for i in range(safe_n):
-        userprofiles.append(UserProfile(df.iloc[i].squeeze()))
-
-    return userprofiles   
+    return df
+    
+def create_userprofiles(data : pd.DataFrame) -> [UserProfile]:
+    """Constructs UserProfiles based on dataframe
+    
+    Args:
+        data (pd.DataFrame) : dataframe with human data
+        
+    Returns:
+        ([UserProfile]) : a list of UserProfile objects
+    """
+    return (data.apply(lambda x: UserProfile(x), axis = 1)).to_list()
 
 
 def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
@@ -136,9 +136,7 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     # simulate interview for each user and question
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
 
-    # TODO: this could be prettier
-    birds = [Auklets.CRESTED.value, Auklets.LEAST.value, Auklets.PARAKEET.value, Auklets.RHINOCEROS.value]
-    birds = [bird.lower() for bird in birds]
+    birds = [bird.value.lower() for bird in Auklets]
 
     for user_num, user in enumerate(profiles):
 
