@@ -131,7 +131,7 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     question_paths = [(i+1, questions_df.at[i, "image_path"]) for i in question_IDs]
     
     # create user profiles from dataset
-    profiles: [UserProfile] = create_user_profiles("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select)
+    profiles: [UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select))
     
     # simulate interview for each user and question
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
