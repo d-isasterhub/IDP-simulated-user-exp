@@ -65,6 +65,36 @@ def create_userprofiles(data : pd.DataFrame) -> [UserProfile]:
     """
     return (data.apply(lambda x: UserProfile(x), axis = 1)).to_list()
 
+def select_questions(n=1, method='balanced') -> [int]:
+    """Selects n question indices in [1..20] using the specified selection method (default: 'balanced').
+    balanced: 1, 6, 11, 16, 2, 7, 12, 17, ...
+    random: as expected
+    first: 1, 2, 3, 4...
+
+    Args:
+        n (int) : number of questions to select
+        method (string) : how to select the questions. options: balanced, random, first
+    
+    Returns:
+        ([int]) : a list of question indices
+    """
+    
+    selection_methods = ['random', 'balanced', 'first']
+
+    if method not in selection_methods:
+        raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
+    
+    n = max(n, 20)
+
+    # select number_questions out of 20 using selected method
+    if method == 'balanced':
+        question_IDs = [(i%4)*5 + (i//4) + 1 for i in range(n)]
+    elif method == 'random':
+        question_IDs = random.sample(range(1, 21), n)
+    else:
+        question_IDs = range(1, n+1) 
+
+    return question_IDs
 
 def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
     """
@@ -113,18 +143,7 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
         selecting multiple questions and conducting an interview for each user-question combination.
     """
 
-    selection_methods = ['random', 'balanced']
-
-    if question_select not in selection_methods:
-        raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
-
-    # select number_questions out of 20 using selected method
-    if question_select == 'balanced':
-        question_IDs = [(i%4)*5 + (i//4) for i in range(number_questions)]
-    elif question_select == 'random':
-        question_IDs = random.sample(range(1, 21), number_questions)
-    else:
-        question_IDs = range(1, number_questions+1) 
+    question_IDs = select_questions(number_questions, question_select)
 
     # read question data, find image paths
     questions_df = pd.read_csv("prediction_questions.csv")
