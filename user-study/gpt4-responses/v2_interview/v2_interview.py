@@ -65,6 +65,19 @@ def create_userprofiles(data : pd.DataFrame) -> [UserProfile]:
     """
     return (data.apply(lambda x: UserProfile(x), axis = 1)).to_list()
 
+def read_questions(path_to_csv:str, indices:[int]) -> [(int, str)]:
+    """Reads file paths associated with questions from csv file
+    
+    Args:
+        path_to_csv (str) : path to csv file with file paths for each question
+        indices ([int]) : list of question indices (starting with 1)
+        
+    Returns:
+        ([(int, str)]) : list of index-filepath pairs
+    """
+    questions_df = pd.read_csv(path_to_csv)
+    return [(i, questions_df.at[i-1, "image_path"]) for i in indices]
+
 def select_questions(n=1, method='balanced') -> [int]:
     """Selects n question indices in [1..20] using the specified selection method (default: 'balanced').
     balanced: 1, 6, 11, 16, 2, 7, 12, 17, ...
@@ -143,20 +156,19 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
         selecting multiple questions and conducting an interview for each user-question combination.
     """
 
+    # find questions
     question_IDs = select_questions(number_questions, question_select)
-
-    # read question data, find image paths
-    questions_df = pd.read_csv("prediction_questions.csv")
-    question_paths = [(i+1, questions_df.at[i, "image_path"]) for i in question_IDs]
+    question_paths = read_questions("prediction_questions.csv", question_IDs)
     
-    # create user profiles from dataset
+    # find users
     profiles: [UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select))
     
-    # simulate interview for each user and question
+    # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
 
     birds = [bird.value.lower() for bird in Auklets]
 
+    # simulate interview for each user and question
     for user_num, user in enumerate(profiles):
 
         user_id = user.user_background['id']
