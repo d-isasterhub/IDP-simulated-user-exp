@@ -2,22 +2,28 @@ import openai
 import os
 import pandas as pd
 
-from v2_profiling import (
+from utils.profiling import (
     UserProfile,
     Auklets,
     create_userprofiles
 )
 
-from v2_interview_util import (
+from utils.api_messages import (
     get_msg,
-    get_msg_with_image,
+    get_msg_with_image
+)
+
+from utils.file_interactions import (
     save_result_df,
-    select_questions,
-    read_questions,
     read_human_data
 )
 
-from v2_interview_util_prompts import (
+from utils.questionnaire import (
+    select_questions,
+    find_imagepaths
+)
+
+from utils.prompts import (
     SYSTEM,
     USER
 )
@@ -74,7 +80,7 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
 
     # find questions
     question_IDs = select_questions(number_questions, question_select)
-    question_paths = read_questions("prediction_questions.csv", question_IDs)
+    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     # find users
     profiles: [UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select))
@@ -111,20 +117,6 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     # saving the result dataframe again
     save_result_df(results_df)
 
-    # with open("out/simulated_interview_results.csv", mode="a") as f_results:
-
-    #     for user_num, user in enumerate(profiles): 
-        
-    #         for (index, q_path) in question_paths:
-    #             user.personalize_prompt(SYSTEM, profiling=True) 
-    #             llm_response = single_interview(user, q_path, user_num, index)
-    #             user.llm_predictions[index] = llm_response
-
-    #         f_results.write("\n")
-    #         f_results.write(user.to_csv_string())
-
-    
-    
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 simulate_interviews(number_users=50, number_questions=20, user_select='random')
