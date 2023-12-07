@@ -104,6 +104,7 @@ class UserProfile:
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
 
+    # TODO: constructors don't work like this in python :c
     def __init__(self, id:int, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
                  features_ca:str, features_la:str, features_pa:str, features_ra:str):
         """Profile info based on manually given parameters"""
@@ -220,3 +221,14 @@ class UserProfile:
         LLM_preds = [self.llm_predictions[i] for i in range(1, 21)]
         return LLM_preds
 
+
+def create_userprofiles(data : pd.DataFrame) -> [UserProfile]:
+    """Constructs UserProfiles based on dataframe
+    
+    Args:
+        data (pd.DataFrame) : dataframe with human data
+        
+    Returns:
+        ([UserProfile]) : a list of UserProfile objects
+    """
+    return (data.apply(lambda x: UserProfile(x), axis = 1)).to_list()
