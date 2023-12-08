@@ -5,7 +5,7 @@ sys.path.append('../v2_interview')
 
 import pytest
 
-from v2_interview_util import (
+from utils.api_messages import (
     get_msg
 )
 

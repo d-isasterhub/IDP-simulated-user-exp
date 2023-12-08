@@ -1,6 +1,8 @@
+import argparse
 import openai
 import os
 import pandas as pd
+import sys
 
 from utils.profiling import (
     UserProfile,
@@ -30,10 +32,36 @@ from utils.prompts import (
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
+def initialize_parser():
+    """Sets up an argparse.ArgumentParser object with desired command line options."""
+
+    parser = argparse.ArgumentParser(description="Simulate a user study using LLMs.", formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('--number_users', default=50, type=int, 
+                                help="number of users to simulate (default: %(default)s)")
+    parser.add_argument('--select_users', default='random', type=str, choices=['random', 'first', 'last'], 
+                                help="how to select users (default: %(default)s, choices: %(choices)s)")
+    
+    subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
+
+    auto_parser = subparsers.add_parser('auto', help='automatic selection of questions. can be given the following args:\n'\
+                                        '\t--number_questions\tnumber of questions to select (default: 20)\n'\
+                                        '\t--select_questions\thow to select questions (default: \'balanced\', choices: \'random\', \'balanced\', \'first\')')
+    auto_parser.add_argument('--number_questions', default=20, type=int,
+                                help="number of main questionnaire questions to simulate (default: %(default)s)")
+    auto_parser.add_argument('--select_questions', default='balanced', type=str, choices=['random', 'balanced', 'first'],
+                                help="how to select the users (default: %(default)s, choices: %(choices)s)")
+    
+    manual_parser = subparsers.add_parser('manual', help='manual selection of questions. needs following arg:\n'\
+                                          '\t--questions\tid(s) of questions to simulate')
+    manual_parser.add_argument('--questions', type=int, nargs='+',
+                                help="id(s) of questions to simulate")
+
+    return parser
+
 
 def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
-    """
-        Simulates an interview by profiling a user and asking a user study question. 
+    """Simulates an interview by profiling a user and asking a user study question. 
         Prompts and response are written to "interview_protocol.txt".
 
         Args:
@@ -72,19 +100,13 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
     return actual_response
 
 
-def simulate_interviews(number_users=1, number_questions=1, user_select='first', question_select='balanced'):
-    """
-        Simulates multiple interviews by generating multiple user profiles from dataset,
-        selecting multiple questions and conducting an interview for each user-question combination.
-    """
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
+    """Simulates interview for each user-question combination.
 
-    # find questions
-    question_IDs = select_questions(number_questions, question_select)
-    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
-    
-    # find users
-    profiles: [UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select))
-    
+        Args:
+            question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
+            profiles ([UserProfile]) : objects representing the users to simulate
+    """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
 
@@ -117,6 +139,31 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     # saving the result dataframe again
     save_result_df(results_df)
 
-
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-simulate_interviews(number_users=50, number_questions=20, user_select='random')
+
+def main():
+    """Sets up and conducts interviews."""
+
+    # parse arguments
+    parser = initialize_parser()
+    args = parser.parse_args()
+
+    # find questions
+    if args.subparser_name is None:
+        # if neither manual nor automatic selection of question was chosen, default to all questions
+        question_IDs = range(1, 21)
+    elif args.subparser_name == 'auto':
+        question_IDs = select_questions(args.number_questions, args.select_questions)
+    else:
+        question_IDs = args.questions   
+    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
+    
+    # find users
+    profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
+                                                                  n=args.number_users, selection=args.select_users))
+
+    simulate_interviews(question_paths, profiles)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
