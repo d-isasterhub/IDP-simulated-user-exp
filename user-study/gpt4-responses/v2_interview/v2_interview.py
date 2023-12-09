@@ -3,6 +3,7 @@ import openai
 import os
 import pandas as pd
 import sys
+import warnings
 
 from utils.profiling import (
     UserProfile,
@@ -53,7 +54,7 @@ def initialize_parser():
                                 help="how to select the users (default: %(default)s, choices: %(choices)s)")
     
     manual_parser = subparsers.add_parser('manual', help='manual selection of questions. needs following arg:\n'\
-                                          '\t--questions\tid(s) of questions to simulate')
+                                          '\t--questions\tid(s) of questions to simulate. expects unique values in [1, 20]')
     manual_parser.add_argument('--questions', type=int, nargs='+',
                                 help="id(s) of questions to simulate")
 
@@ -155,7 +156,13 @@ def main():
     elif args.subparser_name == 'auto':
         question_IDs = select_questions(args.number_questions, args.select_questions)
     else:
-        question_IDs = args.questions   
+        # question IDs should be unique and between 1 and 20
+        question_IDs = set(args.questions)
+        valid_IDs = set(range(1, 21))
+        if not question_IDs.issubset(valid_IDs):
+            warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
+        question_IDs = list(question_IDs.intersection(valid_IDs))
+
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     # find users
