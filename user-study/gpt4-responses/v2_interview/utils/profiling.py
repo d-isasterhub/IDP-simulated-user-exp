@@ -104,6 +104,8 @@ class UserProfile:
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
 
+        self.profiling_prompt = None
+
     # TODO: constructors don't work like this in python :c
     def __init__(self, id:int, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
                  features_ca:str, features_la:str, features_pa:str, features_ra:str):
@@ -129,6 +131,8 @@ class UserProfile:
         self.human_agreements = defaultdict(lambda: "NA")
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
+
+        self.profiling_prompt = None
 
     def __init__(self, user_series : pd.Series):
         """Profile info based on a single pandas Series (dataset row)"""
@@ -159,6 +163,8 @@ class UserProfile:
 
         for i in range(6):
             self.human_agreements[i+1]= str(user_series.at['Q_' + str(i+1)])
+
+        self.profiling_prompt = None
 
 
     def __str__(self) -> str:

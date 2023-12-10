@@ -110,6 +110,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
     """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+    # results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
 
@@ -135,6 +136,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
                 try:
                     results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
                 except:
+                    # TODO: this does not work
                     print("Response generation failed")
 
     # saving the result dataframe again
@@ -162,7 +164,7 @@ def main():
         if not question_IDs.issubset(valid_IDs):
             warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
         question_IDs = list(question_IDs.intersection(valid_IDs))
-
+    print(os.getcwd())
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     # find users
