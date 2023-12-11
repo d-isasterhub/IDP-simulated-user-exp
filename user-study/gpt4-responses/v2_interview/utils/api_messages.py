@@ -1,8 +1,3 @@
-# Imports
-import pandas as pd
-
-
-# Utils
 def get_msg(role:str, prompt:str):
     ''' Creates a message that can directly be used for an OpenAI api call: 
     messages = get_msg(role, prompt)
@@ -22,6 +17,7 @@ def get_msg(role:str, prompt:str):
         {"role": role, "content": prompt}
     ]
     return msg
+
 
 def get_msg_with_image(role:str, prompt:str, image:str):
     ''' Creates a message that can directly be used for an OpenAI api call and contains one
@@ -56,16 +52,6 @@ def get_msg_with_image(role:str, prompt:str, image:str):
     return msg
 
 
-def check_answer_exists():
-    pass
-
-
-def save_result_df(df:pd.DataFrame):
-    df.sort_values(by=['id'], inplace=True)
-    df.reset_index()
-    df.to_csv('out/simulated_interview_results.csv', na_rep='NA')
-    
-
 def _role_check(role:str):
     ''' Checks whether the given role is valid. Throws an error if the role is not valid.
     Accepted roles:
@@ -79,3 +65,4 @@ def _role_check(role:str):
     roles = ['system', 'user', 'assistant']
     if role not in roles:
         raise ValueError("Invalid role type. Expected one of: %s" % roles)
+

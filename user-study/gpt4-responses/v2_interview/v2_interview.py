@@ -1,74 +1,68 @@
+import argparse
 import openai
 import os
 import pandas as pd
-import random
-import os
+import sys
+import warnings
 
-from v2_profiling import (
+from utils.profiling import (
     UserProfile,
-    Auklets
+    Auklets,
+    create_userprofiles
 )
 
-from v2_interview_util import (
+from utils.api_messages import (
     get_msg,
-    get_msg_with_image,
-    save_result_df
+    get_msg_with_image
 )
 
-from v2_interview_util_prompts import (
+from utils.file_interactions import (
+    save_result_df,
+    read_human_data
+)
+
+from utils.questionnaire import (
+    select_questions,
+    find_imagepaths
+)
+
+from utils.prompts import (
     SYSTEM,
     USER
 )
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
-def create_user_profiles(path_to_csv, n=5, selection='first') -> [UserProfile]:
-    """Constructs n UserProfiles based on user data given in a .csv file
-        
-    Args:
-        path_to_csv (str) : path to a csv file with user data
-        n (int) : the number of users to create profiles for
-        selection (str) : how to select the n users from the dataset
+def initialize_parser():
+    """Sets up an argparse.ArgumentParser object with desired command line options."""
+
+    parser = argparse.ArgumentParser(description="Simulate a user study using LLMs.", formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('--number_users', default=50, type=int, 
+                                help="number of users to simulate (default: %(default)s)")
+    parser.add_argument('--select_users', default='random', type=str, choices=['random', 'first', 'last'], 
+                                help="how to select users (default: %(default)s, choices: %(choices)s)")
     
-    Returns:
-        ([UserProfile]) : a list of n UserProfile objects
-    """
-    selection_methods = ['random', 'first', 'last']
+    subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
 
-    if selection not in selection_methods:
-        raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
+    auto_parser = subparsers.add_parser('auto', help='automatic selection of questions. can be given the following args:\n'\
+                                        '\t--number_questions\tnumber of questions to select (default: 20)\n'\
+                                        '\t--select_questions\thow to select questions (default: \'balanced\', choices: \'random\', \'balanced\', \'first\')')
+    auto_parser.add_argument('--number_questions', default=20, type=int,
+                                help="number of main questionnaire questions to simulate (default: %(default)s)")
+    auto_parser.add_argument('--select_questions', default='balanced', type=str, choices=['random', 'balanced', 'first'],
+                                help="how to select the users (default: %(default)s, choices: %(choices)s)")
     
-    safe_n = n
+    manual_parser = subparsers.add_parser('manual', help='manual selection of questions. needs following arg:\n'\
+                                          '\t--questions\tid(s) of questions to simulate. expects unique values in [1, 20]')
+    manual_parser.add_argument('--questions', type=int, nargs='+',
+                                help="id(s) of questions to simulate")
 
-    if selection == 'first':
-        # if we only want the first n rows, we don't need to read the whole file
-        df = pd.read_csv(path_to_csv, nrows=n)
-        
-    elif selection == 'last':
-        df = pd.read_csv(path_to_csv)
-        df = df.tail(n)
-        if df.size < n:
-            safe_n = df.size
-    else: 
-        df = pd.read_csv(path_to_csv)
-        df = df.sample(n)
-        if df.size < n:
-            safe_n = df.size
-    
-    df['id'] = df.index
-    df = df.rename(columns={"Q_8" : "Q_4"})
-
-    userprofiles = []
-
-    for i in range(safe_n):
-        userprofiles.append(UserProfile(df.iloc[i].squeeze()))
-
-    return userprofiles   
+    return parser
 
 
 def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
-    """
-        Simulates an interview by profiling a user and asking a user study question. 
+    """Simulates an interview by profiling a user and asking a user study question. 
         Prompts and response are written to "interview_protocol.txt".
 
         Args:
@@ -107,39 +101,19 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
     return actual_response
 
 
-def simulate_interviews(number_users=1, number_questions=1, user_select='first', question_select='balanced'):
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
+    """Simulates interview for each user-question combination.
+
+        Args:
+            question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
+            profiles ([UserProfile]) : objects representing the users to simulate
     """
-        Simulates multiple interviews by generating multiple user profiles from dataset,
-        selecting multiple questions and conducting an interview for each user-question combination.
-    """
-
-    selection_methods = ['random', 'balanced']
-
-    if question_select not in selection_methods:
-        raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
-
-    # select number_questions out of 20 using selected method
-    if question_select == 'balanced':
-        question_IDs = [(i%4)*5 + (i//4) for i in range(number_questions)]
-    elif question_select == 'random':
-        question_IDs = random.sample(range(1, 21), number_questions)
-    else:
-        question_IDs = range(1, number_questions+1) 
-
-    # read question data, find image paths
-    questions_df = pd.read_csv("prediction_questions.csv")
-    question_paths = [(i+1, questions_df.at[i, "image_path"]) for i in question_IDs]
-    
-    # create user profiles from dataset
-    profiles: [UserProfile] = create_user_profiles("../../data-exploration-cleanup/cleaned_simulatedusers.csv", n=number_users, selection=user_select)
-    
-    # simulate interview for each user and question
+    # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
 
-    # TODO: this could be prettier
-    birds = [Auklets.CRESTED.value, Auklets.LEAST.value, Auklets.PARAKEET.value, Auklets.RHINOCEROS.value]
-    birds = [bird.lower() for bird in birds]
+    birds = [bird.value.lower() for bird in Auklets]
 
+    # simulate interview for each user and question
     for user_num, user in enumerate(profiles):
 
         user_id = user.user_background['id']
@@ -149,12 +123,15 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
             print(user_id)
             results_df.loc[user_id] = 'NA'
 
+        # profiling prompt only needs to be created once per UserProfile object
+        if user.profiling_prompt is None:
+            user.personalize_prompt(SYSTEM, profiling=True)
+
         # request gpt-4 responses for not yet (properly) answered questions
         for (index, q_path) in question_paths:
             question = "LLM_Q" + str(index) # TODO: will have to change this probably
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
-                user.personalize_prompt(SYSTEM, profiling=True)
                 try:
                     results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
                 except:
@@ -163,20 +140,37 @@ def simulate_interviews(number_users=1, number_questions=1, user_select='first',
     # saving the result dataframe again
     save_result_df(results_df)
 
-    # with open("out/simulated_interview_results.csv", mode="a") as f_results:
-
-    #     for user_num, user in enumerate(profiles): 
-        
-    #         for (index, q_path) in question_paths:
-    #             user.personalize_prompt(SYSTEM, profiling=True) 
-    #             llm_response = single_interview(user, q_path, user_num, index)
-    #             user.llm_predictions[index] = llm_response
-
-    #         f_results.write("\n")
-    #         f_results.write(user.to_csv_string())
-
-    
-    
-
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-simulate_interviews(number_users=50, number_questions=20, user_select='random')
+
+def main():
+    """Sets up and conducts interviews."""
+
+    # parse arguments
+    parser = initialize_parser()
+    args = parser.parse_args()
+
+    # find questions
+    if args.subparser_name is None:
+        # if neither manual nor automatic selection of question was chosen, default to all questions
+        question_IDs = range(1, 21)
+    elif args.subparser_name == 'auto':
+        question_IDs = select_questions(args.number_questions, args.select_questions)
+    else:
+        # question IDs should be unique and between 1 and 20
+        question_IDs = set(args.questions)
+        valid_IDs = set(range(1, 21))
+        if not question_IDs.issubset(valid_IDs):
+            warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
+        question_IDs = list(question_IDs.intersection(valid_IDs))
+
+    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
+    
+    # find users
+    profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
+                                                                  n=args.number_users, selection=args.select_users))
+
+    simulate_interviews(question_paths, profiles)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
