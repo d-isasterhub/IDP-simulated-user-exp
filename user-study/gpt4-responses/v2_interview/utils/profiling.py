@@ -75,7 +75,7 @@ class UserProfile:
     llm_predictions : defaultdict[int, str]
     llm_agreements : defaultdict[int, str]
 
-    profiling_prompt : str = None
+    profiling_prompt : str
 
     def __init__(self):
         """Profile filled with default values (average/most common values)"""
@@ -103,6 +103,8 @@ class UserProfile:
         self.human_agreements = defaultdict(lambda: "NA")
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
+
+        self.profiling_prompt = None
 
     # TODO: constructors don't work like this in python :c
     def __init__(self, id:int, age:int, gender:Gender, employment_status:Employment, ai_user:bool, ai_dev:bool, 
@@ -159,6 +161,8 @@ class UserProfile:
 
         for i in range(6):
             self.human_agreements[i+1]= str(user_series.at['Q_' + str(i+1)])
+        
+        self.profiling_prompt = None
 
 
     def __str__(self) -> str:
