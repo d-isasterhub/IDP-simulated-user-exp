@@ -75,7 +75,7 @@ class UserProfile:
     llm_predictions : defaultdict[int, str]
     llm_agreements : defaultdict[int, str]
 
-    profiling_prompt : str
+    profiling_prompt : str = None
 
     def __init__(self):
         """Profile filled with default values (average/most common values)"""
