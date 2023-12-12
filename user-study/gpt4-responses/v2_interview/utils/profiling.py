@@ -163,6 +163,8 @@ class UserProfile:
 
         for i in range(6):
             self.human_agreements[i+1]= str(user_series.at['Q_' + str(i+1)])
+        
+        self.profiling_prompt = None
 
         self.profiling_prompt = None
 
