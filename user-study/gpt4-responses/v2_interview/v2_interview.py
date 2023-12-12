@@ -88,7 +88,7 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
 
         response = openai.ChatCompletion.create(
             model = "gpt-4-vision-preview",
-            max_tokens = 300,
+            max_tokens = 400,
             messages = 
                 get_msg(role="system", prompt=user.profiling_prompt) +\
                 get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
@@ -110,7 +110,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
     """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
-    # results_df['LLM_Q2'] = 'NA'
+    #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
 
@@ -171,7 +171,7 @@ def main():
     profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
                                                                   n=args.number_users, selection=args.select_users))
 
-    simulate_interviews(question_paths, profiles)
+    simulate_interviews(question_paths, profiles[:2])
 
 
 if __name__ == '__main__':
