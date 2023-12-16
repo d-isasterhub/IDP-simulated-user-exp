@@ -44,7 +44,7 @@ def initialize_parser():
                                 help="number of users to simulate (default: %(default)s)")
     parser.add_argument('--select_users', default='random', type=str, choices=['random', 'first', 'last'], 
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--profiling', default='minimal', type=str, choices=['full', 'minimal', 'none'],
+    parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
                                 help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
