@@ -28,7 +28,9 @@ from utils.questionnaire import (
 
 from utils.prompts import (
     SYSTEM,
-    USER
+    USER_INTRO,
+    USER_PROFILING,
+    USER_QUESTION
 )
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -42,6 +44,8 @@ def initialize_parser():
                                 help="number of users to simulate (default: %(default)s)")
     parser.add_argument('--select_users', default='random', type=str, choices=['random', 'first', 'last'], 
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
+    parser.add_argument('--profiling', default='minimal', type=str, choices=['full', 'minimal', 'none'],
+                                help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
 
@@ -61,7 +65,7 @@ def initialize_parser():
     return parser
 
 
-def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
+def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int, profiling_level : str) -> str:
     """Simulates an interview by profiling a user and asking a user study question. 
         Prompts and response are written to "interview_protocol.txt".
 
@@ -70,18 +74,20 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
             image_path (str) : path to the image corresponding to the question
             user_num (int) : number of user in a series of interviews
             q_num (int) : number of question in a series of interviews
+            profiling (str) : level of profiling to give
         
         Returns:
             (str) : simulated response
     """
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
-    QUESTION = user.personalize_prompt(USER)
+    QUESTION = USER_INTRO + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROFILING)) + USER_QUESTION
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open("out/interview_protocol.txt", mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
-        f.write(user.profiling_prompt)
+        if profiling_level == 'full':
+            f.write(user.profiling_prompt)
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
@@ -90,7 +96,7 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
             model = "gpt-4-vision-preview",
             max_tokens = 300,
             messages = 
-                get_msg(role="system", prompt=user.profiling_prompt) +\
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
                 get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
         )
         actual_response = response["choices"][0]["message"]["content"] # have a string
@@ -101,12 +107,25 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
     return actual_response
 
 
-def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
-    """Simulates interview for each user-question combination.
+def profile_users(profiles:[UserProfile], profiling_level:str):
+    """Personalizes system prompts for users at given profiling level. If profiling level is 'none', system prompt will be None.
+    
+        Args:
+            profiles ([UserProfile]) : the users to profile
+            profiling (str) : level of profiling to give
+    """
+    if profiling_level == 'full':
+        for p in profiles:
+            p.personalize_prompt(SYSTEM, profiling=True)
+
+
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str):
+    """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
+            profiling (str) : level of profiling to give
     """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
@@ -123,17 +142,13 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
             print(user_id)
             results_df.loc[user_id] = 'NA'
 
-        # profiling prompt only needs to be created once per UserProfile object
-        if user.profiling_prompt is None:
-            user.personalize_prompt(SYSTEM, profiling=True)
-
         # request gpt-4 responses for not yet (properly) answered questions
         for (index, q_path) in question_paths:
             question = "LLM_Q" + str(index) # TODO: will have to change this probably
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+                    results_df.at[user_id, question] = single_interview(user, q_path, user_num, index, profiling_level)
                 except:
                     print("Response generation failed")
 
@@ -168,8 +183,9 @@ def main():
     # find users
     profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
                                                                   n=args.number_users, selection=args.select_users))
+    profile_users(profiles, args.profiling)
 
-    simulate_interviews(question_paths, profiles)
+    simulate_interviews(question_paths, profiles, args.profiling)
 
 
 if __name__ == '__main__':
