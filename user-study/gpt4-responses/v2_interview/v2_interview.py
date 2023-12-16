@@ -67,7 +67,7 @@ def initialize_parser():
 
 def single_interview(user : UserProfile, image_path : str, q_num : int) -> str:
     """Simulates an interview by profiling a user and asking a user study question. 
-        Prompts and response are written to "interview_protocol.txt".
+        Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
             user (UserProfile) : object representing the user that is simulated
@@ -76,7 +76,7 @@ def single_interview(user : UserProfile, image_path : str, q_num : int) -> str:
             q_num (int) : number of question in a series of interviews
         
         Returns:
-            (str) : simulated response
+            (str) : simulated and cleaned question answer
     """
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
@@ -98,11 +98,16 @@ def single_interview(user : UserProfile, image_path : str, q_num : int) -> str:
                 get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
         )
         actual_response = response["choices"][0]["message"]["content"] # have a string
+
+        reasoning, answer = process_llm_output(actual_response)
         
-        f.write(actual_response)
+        f.write("Reasoning:\n")
+        f.write(reasoning)
+        f.write("Answer:\n")
+        f.write(answer)
         f.write("\n\n")
 
-    return actual_response
+    return answer
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
@@ -137,9 +142,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    llm_output = single_interview(user, q_path, q_index)
-                    reasoning, answer = process_llm_output(llm_output)
-                    results_df.at[user_id, question] = answer
+                    results_df.at[user_id, question] = single_interview(user, q_path, q_index)
                 except:
                     print("Response generation failed")
 
