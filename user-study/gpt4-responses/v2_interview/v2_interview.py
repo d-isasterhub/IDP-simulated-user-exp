@@ -61,7 +61,7 @@ def initialize_parser():
     return parser
 
 
-def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
+def single_interview(user : UserProfile, image_path : str, q_num : int) -> str:
     """Simulates an interview by profiling a user and asking a user study question. 
         Prompts and response are written to "interview_protocol.txt".
 
@@ -80,7 +80,7 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open("out/interview_protocol.txt", mode="a+") as f:
-        f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
+        f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         f.write(user.profiling_prompt)
         f.write("\n")
         f.write(QUESTION)
@@ -114,7 +114,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
     birds = [bird.value.lower() for bird in Auklets]
 
     # simulate interview for each user and question
-    for user_num, user in enumerate(profiles):
+    for user in profiles:
 
         user_id = user.user_background['id']
 
@@ -128,12 +128,12 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
             user.personalize_prompt(SYSTEM, profiling=True)
 
         # request gpt-4 responses for not yet (properly) answered questions
-        for (index, q_path) in question_paths:
-            question = "LLM_Q" + str(index) # TODO: will have to change this probably
+        for (q_index, q_path) in question_paths:
+            question = "LLM_Q" + str(q_index) # TODO: will have to change this probably
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+                    results_df.at[user_id, question] = single_interview(user, q_path, q_index)
                 except:
                     print("Response generation failed")
 
