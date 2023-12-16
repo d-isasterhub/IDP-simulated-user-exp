@@ -31,6 +31,10 @@ from utils.prompts import (
     USER
 )
 
+from utils.answer_processing import (
+    process_llm_output
+)
+
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def initialize_parser():
@@ -133,7 +137,9 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, q_index)
+                    llm_output = single_interview(user, q_path, q_index)
+                    reasoning, answer = process_llm_output(llm_output)
+                    results_df.at[user_id, question] = answer
                 except:
                     print("Response generation failed")
 
