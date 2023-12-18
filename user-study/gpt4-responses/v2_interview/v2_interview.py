@@ -31,6 +31,10 @@ from utils.prompts import (
     USER
 )
 
+from utils.answer_processing import (
+    process_llm_output
+)
+
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def initialize_parser():
@@ -61,9 +65,9 @@ def initialize_parser():
     return parser
 
 
-def single_interview(user : UserProfile, image_path : str, user_num : int, q_num : int) -> str:
+def single_interview(user : UserProfile, image_path : str, q_num : int) -> str:
     """Simulates an interview by profiling a user and asking a user study question. 
-        Prompts and response are written to "interview_protocol.txt".
+        Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
             user (UserProfile) : object representing the user that is simulated
@@ -72,7 +76,7 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
             q_num (int) : number of question in a series of interviews
         
         Returns:
-            (str) : simulated response
+            (str) : simulated and cleaned question answer
     """
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
@@ -80,7 +84,7 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open("out/interview_protocol.txt", mode="a+") as f:
-        f.write("Simulated user {u} answering question {i}:\n".format(u=user_num, i=q_num))
+        f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         f.write(user.profiling_prompt)
         f.write("\n")
         f.write(QUESTION)
@@ -94,11 +98,16 @@ def single_interview(user : UserProfile, image_path : str, user_num : int, q_num
                 get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
         )
         actual_response = response["choices"][0]["message"]["content"] # have a string
+
+        reasoning, answer = process_llm_output(actual_response)
         
-        f.write(actual_response)
+        f.write("Reasoning:\n")
+        f.write(reasoning)
+        f.write("Answer:\n")
+        f.write(answer)
         f.write("\n\n")
 
-    return actual_response
+    return answer
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
@@ -114,7 +123,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
     birds = [bird.value.lower() for bird in Auklets]
 
     # simulate interview for each user and question
-    for user_num, user in enumerate(profiles):
+    for user in profiles:
 
         user_id = user.user_background['id']
 
@@ -128,12 +137,12 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile]):
             user.personalize_prompt(SYSTEM, profiling=True)
 
         # request gpt-4 responses for not yet (properly) answered questions
-        for (index, q_path) in question_paths:
-            question = "LLM_Q" + str(index) # TODO: will have to change this probably
+        for (q_index, q_path) in question_paths:
+            question = "LLM_Q" + str(q_index) # TODO: will have to change this probably
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, user_num, index)
+                    results_df.at[user_id, question] = single_interview(user, q_path, q_index)
                 except:
                     print("Response generation failed")
 
