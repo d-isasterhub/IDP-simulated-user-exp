@@ -8,7 +8,8 @@ import warnings
 from utils.profiling import (
     UserProfile,
     Auklets,
-    create_userprofiles
+    create_userprofiles,
+    DEFAULT_DATA
 )
 
 from utils.api_messages import (
@@ -180,10 +181,14 @@ def main():
 
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
-    # find users
-    profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
+    if args.profiling == 'none':
+        default_profile = pd.Series
+        profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
+    else:
+        # find users
+        profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
                                                                   n=args.number_users, selection=args.select_users))
-    profile_users(profiles, args.profiling)
+        profile_users(profiles, args.profiling)
 
     simulate_interviews(question_paths, profiles, args.profiling)
 
