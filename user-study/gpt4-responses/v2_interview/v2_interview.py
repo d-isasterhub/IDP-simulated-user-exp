@@ -171,7 +171,7 @@ def main():
     profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
                                                                   n=args.number_users, selection=args.select_users))
 
-    simulate_interviews(question_paths, profiles[:2])
+    simulate_interviews([question_paths[1]], profiles)
 
 
 if __name__ == '__main__':
