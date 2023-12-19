@@ -6,6 +6,8 @@ import pprint
 import re
 import itertools
 
+# -------------------------------- enums for demographic data -----------------------
+
 class Employment(Enum):
     """Enum for the employment options"""
 
@@ -31,6 +33,23 @@ class Auklets(Enum):
     LEAST = "Least Auklet"
     PARAKEET = "Parakeet Auklet"
     RHINOCEROS = "Rhinoceros Auklet"
+
+# -------------------------- default data for no-profiling option -------------------
+
+DEFAULT_DATA = pd.Series({
+    'id' : 0,
+    'Age' : 0,
+    'Gender' : 'female',
+    'Employment' : 'other',
+    'AI_User' : True,
+    'AI_Dev' : True,
+    'Warmup_2_CA' : "",
+    'Warmup_2_LA' : "",
+    'Warmup_2_PA' : "",
+    'Warmup_2_RA' : "",
+})
+
+# ------------------------ data structures for user profiles ----------------------
 
 class UserBackground(TypedDict):
     """A class that represents the demographic/domain background of a user"""
@@ -58,6 +77,8 @@ class WarmupAnswers(TypedDict):
     heatmap_features_pa : str
     heatmap_features_ra : str
 
+
+# --------------------------------- UserProfile class --------------------------------
 
 class UserProfile:
     """
