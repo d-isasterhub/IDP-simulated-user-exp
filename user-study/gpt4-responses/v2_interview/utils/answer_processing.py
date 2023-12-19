@@ -1,6 +1,6 @@
 import re
 import warnings
-from profiling import Auklets
+from utils.profiling import Auklets
 
 QUESTIONNAIRES = ['birds']
 

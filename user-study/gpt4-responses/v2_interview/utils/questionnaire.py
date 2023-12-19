@@ -35,7 +35,7 @@ def select_questions(n=1, method='balanced') -> [int]:
     if method not in selection_methods:
         raise ValueError("Invalid selection method. Expected one of: %s" % selection_methods)
     
-    n = max(n, 20)
+    n = min(n, 20)
 
     # select number_questions out of 20 using selected method
     if method == 'balanced':
