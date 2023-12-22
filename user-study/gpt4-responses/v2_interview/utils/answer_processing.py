@@ -41,6 +41,32 @@ def clean_answer(raw:str) -> str:
     return clean
     
 
+def extract_answer(answer:str, questionnaire:str='birds') -> str:
+    """Extracts answer option from a full sentence. Returns empty string if not exactly one valid answer is found.
+
+        Args:
+            raw (str) : full answer string
+
+        Returns:
+            (str) : valid answer
+    
+    """
+    if questionnaire not in QUESTIONNAIRES:
+        raise ValueError("Invalid questionnaire option. Expected one of: %s" % QUESTIONNAIRES)
+    
+    answer_enum = QUESTIONNAIRES_TO_ENUMS.get(questionnaire)
+    matches = {option.value for option in answer_enum if option.value.lower() in answer.lower()}
+
+    if len(matches) == 0:
+        warnings.warn("No valid answer option found in last line of LLM response. Proceeding with empty answer.")
+        return ""
+    elif len(matches > 1):
+        warnings.warn("More than one valid answer option found in last line of LLM reponse. Proceeding with empty answer.")
+        return ""
+    else:
+        return matches[0]
+
+
 def split_llm_output(output:str) -> (str, str):
     """Splits LLM output into reasoning and question answer.
 
@@ -68,4 +94,4 @@ def process_llm_output(output:str, questionnaire:str='birds') -> (str, str):
             ((str, str)) : the reasoning and the cleaned + validated answer
     """
     reasoning, raw_answer = split_llm_output(output)
-    return reasoning, validate_answer(clean_answer(raw_answer), questionnaire)
+    return reasoning, extract_answer(raw_answer, questionnaire)
