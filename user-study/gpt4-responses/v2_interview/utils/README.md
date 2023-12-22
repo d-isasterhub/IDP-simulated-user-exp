@@ -39,6 +39,11 @@ There are several prompts that were tried to generate GPT-4 responses. Currently
 Crested Auklet
 ```
 
+#### CONSTANTS
+- USER_INTRO_1 
+- USER_PROFILING_1
+- USER_QUESTION_1
+
 #### NOTE
 
 - This version incorrectly called the prediction model an "XAI model". <br> Instead of `"[...] what bird species do you think did the XAI model predict [...]"` it should be `"[...] what bird species do you think was predicted [...]"`
@@ -66,6 +71,12 @@ Crested Auklet
 > - Rhinoceros Auklet 
 >
 > For each description explain why it could be this bird species or why not. Conclude your answer by only stating the chosenn option in the last line of your response. Keep the token limit low.
+
+#### CONSTANTS
+- SYSTEM
+- USER_INTRO_2 
+- USER_PROFILING_2
+- USER_QUESTION_2
 
 #### NOTE
 
