@@ -153,6 +153,8 @@ class UserProfile:
         self.llm_predictions = defaultdict(lambda: "NA")
         self.llm_agreements = defaultdict(lambda: "NA")
 
+        self.profiling_prompt = None
+
     def __init__(self, user_series : pd.Series):
         """Profile info based on a single pandas Series (dataset row)"""
         
@@ -183,6 +185,8 @@ class UserProfile:
         for i in range(6):
             self.human_agreements[i+1]= str(user_series.at['Q_' + str(i+1)])
         
+        self.profiling_prompt = None
+
         self.profiling_prompt = None
 
 

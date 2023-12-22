@@ -99,7 +99,7 @@ def single_interview(user : UserProfile, image_path : str, q_num : int, profilin
 
         response = openai.ChatCompletion.create(
             model = "gpt-4-vision-preview",
-            max_tokens = 300,
+            max_tokens = 400,
             messages = 
                 (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
                 get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
@@ -139,6 +139,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
     """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+    #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
 
@@ -160,6 +161,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
                 try:
                     results_df.at[user_id, question] = single_interview(user, q_path, q_index, profiling_level)
                 except:
+                    # TODO: this does not work
                     print("Response generation failed")
 
     # saving the result dataframe again
@@ -187,7 +189,7 @@ def main():
         if not question_IDs.issubset(valid_IDs):
             warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
         question_IDs = list(question_IDs.intersection(valid_IDs))
-
+    print(os.getcwd())
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     if args.profiling == 'none':

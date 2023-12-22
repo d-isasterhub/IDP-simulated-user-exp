@@ -12,6 +12,7 @@ install.packages("data.table")
 install.packages("magrittr")
 install.packages("ggplot2")
 install.packages("tidyr")
+install.packages("dplyr")
 ```
 
 ```{r libraries, include = FALSE}
@@ -19,26 +20,191 @@ library(data.table)
 library(magrittr)
 library(ggplot2)
 library(tidyr)
+library(dplyr)
 ```
 
-## Data Tables
 
-TODO
+## Visualization: Descriptive Plots
+
+#### Read data table
 
 ```{r Data Table}
+human_dt <- fread(
+  "../data-exploration-cleanup/cleaned_simulatedusers.csv",
+)[,-1]
+human_dt[, id := 0:(nrow(human_dt)-1)]
+
+llm_dt <- fread(
+  "../gpt4-responses/v2_interview/out/simulated_interview_results.csv"
+)
+
+correct_dt <- fread("../gpt4-responses/v2_interview/prediction_questions.csv") %>%
+  .[, Question := paste0("Q", ID)] %>%
+  .[, mget(c("Question", "correct_answer"))]
+colnames(correct_dt) <- c("Question", "CorrectAnswer")
+```
+
+## Visualization: Descriptive and Associative Plots
+
+```{r Data Table}
+getTidyDt <- function(questions, dt_h, dt_llm) {
+  # Get human data table: id | Human_Qi | ... | Human_Qj
+  human_cols <- paste0("Human_", questions)
+  dt_h <- dt_h %>% rename_at(questions, ~ human_cols) %>%
+    .[, mget(c("id", human_cols))]
+  
+  # Get LLM data table: id | LLM_Qi | ... | LLM_Qj
+  llm_cols <- paste0("LLM_", questions)
+  dt_llm <- dt_llm[,mget(c("id", llm_cols))]
+  
+  # Merge data tables
+  dt <- merge(dt_h, dt_llm, by = "id")
+  dt %>% melt(
+    id.vars = "id",
+    variable.name = "Question",
+    "value.name" = "Prediction"
+  ) %>% separate(
+    col = "Question",
+    into = c("User", "Question"),
+    remove = TRUE
+  )
+}
+
+getHumanAccuracyDt <- function(questions, dt_h, dt_llm){
+  dt <- getTidyDt(questions, dt_h, dt_llm) %>% spread(
+    User, Prediction
+  ) %>% as.data.table() 
+  dt[, Correct := 1*(Human == LLM)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("Question")]
+}
+
+getAccuracyDt <- function(questions, dt_h, dt_llm, correct){
+  dt <- merge(
+    getTidyDt(questions, dt_h, dt_llm),
+    correct,
+    by = "Question"
+  ) %>% as.data.table()
+  dt[, Correct := 1*(Prediction == CorrectAnswer)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("User", "Question")] %>% spread(
+       User, Accuracy
+     ) %>% as.data.table()
+}
+
+questions <- paste0("Q", 1:20)
+acc_dt <- getAccuracyDt(questions, human_dt, llm_dt, correct_dt)
+acc_dt
+
+human_acc_dt <- getHumanAccuracyDt(questions, human_dt, llm_dt)
+human_acc_dt
+```
+
+```{r Plotting}
+getAccuracyPlot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Accuracy = sum(Accuracy)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy)) +
+    geom_col() +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title)
+  print(p)
+  complete_dt
+}
+
+questions <- paste0("Q", 1:5)
+title <- "Guessing the human prediction for 'Crested Auklet' classification"
+getAccuracyPlot(human_acc_dt, questions, title)
+
+questions <- paste0("Q", 6:10)
+title <- "Guessing the human prediction for 'Least Auklet' classification"
+getAccuracyPlot(human_acc_dt, questions, title)
+
+questions <- paste0("Q", 11:15)
+title <- "Guessing the human prediction for 'Parakeet Auklet' classification"
+getAccuracyPlot(human_acc_dt, questions, title)
+
+questions <- paste0("Q", 16:20)
+title <- "Guessing the human prediction for 'Rhinoceros Auklet' classification"
+getAccuracyPlot(human_acc_dt, questions, title)
+
+questions <- paste0("Q", 1:20)
+title <- "Guessing the human prediction for all bird classifications"
+getAccuracyPlot(human_acc_dt, questions, title)
+```
+
+```{r Plotting Human 100%}
+getAccuracyPlot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Human = sum(Human)/.N, LLM = sum(LLM)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    melt(
+      id.vars = NULL,
+      variable.name = "User",
+      value.name = "Accuracy"
+    ) %>% 
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy, fill=User)) +
+    geom_col(position="dodge") +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title)
+  print(p)
+  complete_dt
+}
+
+questions <- paste0("Q", 1:5)
+title <- "Guessing the classification 'Crested Auklet' correctly"
+getAccuracyPlot(acc_dt, questions, title)
+
+questions <- paste0("Q", 6:10)
+title <- "Guessing the classification 'Least Auklet' correctly"
+getAccuracyPlot(acc_dt, questions, title)
+
+questions <- paste0("Q", 11:15)
+title <- "Guessing the classification 'Parakeet Auklet' correctly"
+getAccuracyPlot(acc_dt, questions, title)
+
+questions <- paste0("Q", 16:20)
+title <- "Guessing the classification 'Rhinoceros Auklet' correctly"
+getAccuracyPlot(acc_dt, questions, title)
+
+questions <- paste0("Q", 1:20)
+title <- "Guessing the classification for all birds correctly"
+getAccuracyPlot(acc_dt, questions, title)
+```
+
+## Data Tables (outdated)
+
+```{r Data Table (outdated)}
 human <- c('Q16', 'Q17', 'Q18', 'Q19')
 llm <- c('id', 'LLM_Q16', 'LLM_Q17', 'LLM_Q18', 'LLM_Q19')
 human_dt <- fread("../data-exploration-cleanup/cleaned_simulatedusers.csv",
                   select = human)
-llm_dt <- fread("../gpt4-responses/v2_interview/out/simulated_interview_results.csv", 
-                select = llm)
+llm_dt <- fread(
+  "../gpt4-responses/v2_interview/out/simulated_interview_results.csv", 
+  select = llm
+)
 colnames(human_dt) <- paste0("HUMAN_", colnames((human_dt)))
 human_dt[, 'id' := seq(0, nrow(human_dt)-1)]
 
 dt <- merge(human_dt, llm_dt, all = FALSE, by = 'id')
 ```
 
-## Plots
+## Plots (outdated)
 
 ```{r Tyding}
 melt_dt <- dt %>% melt(
