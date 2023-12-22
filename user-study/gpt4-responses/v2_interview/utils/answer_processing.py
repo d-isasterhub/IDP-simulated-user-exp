@@ -1,5 +1,5 @@
 import re
-from profiling import Auklets
+from .profiling import Auklets
 
 QUESTIONNAIRES = ['birds']
 
