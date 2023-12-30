@@ -160,9 +160,10 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             if results_df.at[user_id, question].lower() not in birds:
                 try:
                     results_df.at[user_id, question] = single_interview(user, q_path, q_index, profiling_level)
-                except:
+                except Exception as e:
                     # TODO: this does not work
-                    print("Response generation failed")
+                    print("Response generation failed:\n")
+                    print(e)
 
     # saving the result dataframe again
     save_result_df(results_df)

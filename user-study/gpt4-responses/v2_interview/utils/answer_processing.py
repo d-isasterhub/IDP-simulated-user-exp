@@ -60,11 +60,11 @@ def extract_answer(answer:str, questionnaire:str='birds') -> str:
     if len(matches) == 0:
         warnings.warn("No valid answer option found in last line of LLM response. Proceeding with empty answer.")
         return ""
-    elif len(matches > 1):
+    elif len(matches) > 1:
         warnings.warn("More than one valid answer option found in last line of LLM reponse. Proceeding with empty answer.")
         return ""
     else:
-        return matches[0]
+        return list(matches)[0]
 
 
 def split_llm_output(output:str) -> (str, str):
