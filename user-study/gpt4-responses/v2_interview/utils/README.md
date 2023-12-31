@@ -129,3 +129,6 @@ Crested Auklet
 - USER_INTRO_3
 - USER_PROFILING_3
 - USER_QUESTION_3
+
+#### NOTE
+- This approach has a hallucination problem
