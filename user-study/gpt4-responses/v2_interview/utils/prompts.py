@@ -155,7 +155,7 @@ USER_AGREEMENT_INTRO = "Previously, you were given images of birds. Each image w
 USER_AGREEMENT_PREVIOUS = "For each of the images, you had to guess which of four bird species was predicted "\
     "for it based on the heatmap that was generated for the image. "
 
-USER_AGREEMENT_PROFILING = "You believed that the classification model distinguishes between four possible species "\
+USER_AGREEMENT_PROFILING = "You believed that the classification model distinguishes between the four possible species "\
     "classes based on the following features that need to be highlighted by the heatmap: \n"\
     "- Rhinoceros Auklets: HEATMAP_FEATURES_RA\n"\
     "- Least Auklets: HEATMAP_FEATURES_LA\n"\
@@ -167,9 +167,10 @@ USER_AGREEMENT_ACCURACY = "Out of 20 images you were confronted with, you guesse
 
 USER_AGREEMENT_TASK = "Now you are asked to evaluate your XAI user study experience. "
 
+USER_AGREEMENT_QUESTION = "Rate your level of agreement for the following question: "
+
 # Might have to describe the levels of agreement more thoroughly
-USER_AGREEMENT_QUESTION = "Rate your level of agreement for the following question. Answer on a scale of 1 to 7, "\
-    "where 1 means completely disagree and 7 completely agree. "
+USER_AGREEMENT_SCALE = "Answer on a scale of 1 to 7, where 1 means completely disagree and 7 completely agree. "
 
 USER_AGREEMENT_ANSWER = "Answer with the number only."
 
