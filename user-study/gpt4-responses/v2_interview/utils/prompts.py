@@ -146,9 +146,6 @@ USER_QUESTION_4 = "Based on the descriptions and the areas highlighted by the he
 
 TOKENS_LOW = "Keep the number of tokens low. "
 
-
-# ========================================== USER AGREEMENT ==========================================
-
 # ========================================== USER AGREEMENT ==========================================
 
 USER_AGREEMENT_INTRO = "Previously, you were given images of birds. Each image was combined with a heatmap that was "\
