@@ -1,3 +1,4 @@
-id,heatmap_description
-1,"In the heatmap image, the red areas appear to highlight the bird’s head, particularly focusing on the crest and the beak region. The intensity of red suggests these features are significant for the AI model's prediction of the bird species."
-7,"In the heatmap image provided, the areas of the bird that are highlighted in red appear to be concentrated on the head, specifically around the bird's face, beak, and throat area. This suggests that the artificial intelligence model identifies these parts of the bird as important features for determining the species of the bird."
+"id","heatmap_description"
+1,"The heatmap highlights the bird's head and beak in red."
+5,"The red areas on the heatmap mainly highlight the bird's head, eye, and beak."
+7,"The red areas highlighted by the heatmap are focused on the bird's head, particularly around the eye and beak."
