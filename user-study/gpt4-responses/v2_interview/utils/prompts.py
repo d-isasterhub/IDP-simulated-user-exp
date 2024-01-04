@@ -237,6 +237,7 @@ USER_PROMPTS = {
     (3, "question") : USER_QUESTION_3,
     (4, "intro") : USER_INTRO_4,
     (4, "profiling") : USER_PROFILING_4,
-    (4, "question") : USER_QUESTION_4
+    (4, "question") : USER_QUESTION_4,
+    (4, "heatmap") : USER_HEATMAP_4
 }
 

@@ -12,7 +12,7 @@ def get_llm_heatmap_description(image_path:str) -> str:
             max_tokens = 400,
             messages = 
                 (get_msg(role="user", prompt=USER_INTRO_4)) +\
-                get_msg_with_image(role="user", prompt=USER_HEATMAP_4+TOKENS_LOW, image=image_path)
+                get_msg_with_image(role="user", prompt=USER_HEATMAP_4+" "+TOKENS_LOW, image=image_path)
         )
     actual_response = response["choices"][0]["message"]["content"]
     return actual_response
@@ -34,3 +34,6 @@ def generate_heatmap_descriptions(question_IDs:[int]) -> None:
     heatmaps_df.reset_index()
     heatmaps_df.to_csv("heatmap_descriptions.csv", na_rep='NA', index=False, quoting=csv.QUOTE_NONNUMERIC)
 
+def get_heatmap_descriptions() -> dict[int, str]:
+    heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
+    return heatmaps_df.to_dict('records')
