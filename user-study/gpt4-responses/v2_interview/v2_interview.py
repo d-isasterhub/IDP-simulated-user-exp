@@ -29,9 +29,7 @@ from utils.questionnaire import (
 
 from utils.prompts import (
     SYSTEM,
-    USER_INTRO,
-    USER_PROFILING,
-    USER_QUESTION
+    USER_PROMPTS
 )
 
 from utils.answer_processing import (
@@ -51,6 +49,8 @@ def initialize_parser():
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
     parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
                                 help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
+    parser.add_argument('--variation', default=1, type=int, choices=[1, 2, 3, 4],
+                                help="what variation of prompting to use (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
 
@@ -70,8 +70,8 @@ def initialize_parser():
     return parser
 
 
-def single_interview(user : UserProfile, image_path : str, q_num : int, profiling_level : str) -> str:
-    """Simulates an interview by profiling a user and asking a user study question. 
+def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling_level : str, variation : int) -> str:
+    """Simulates an interview by first profiling a user and then asking a user study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
@@ -80,13 +80,16 @@ def single_interview(user : UserProfile, image_path : str, q_num : int, profilin
             user_num (int) : number of user in a series of interviews
             q_num (int) : number of question in a series of interviews
             profiling (str) : level of profiling to give
+            variation (int) : variation of prompts to use
         
         Returns:
             (str) : simulated and cleaned question answer
     """
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
-    QUESTION = USER_INTRO + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROFILING)) + USER_QUESTION
+
+    QUESTION = USER_PROMPTS[(variation, "intro")] + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROMPTS[(variation, "profiling")])) + USER_PROMPTS[(variation, "question")]
+    print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open("out/interview_protocol.txt", mode="a+") as f:
@@ -129,13 +132,14 @@ def profile_users(profiles:[UserProfile], profiling_level:str):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str):
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str, variation:int):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (str) : level of profiling to give
+            variation (int) : prompting variant
     """
     # find (previous) results    
     results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
@@ -159,7 +163,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, q_index, profiling_level)
+                    results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -194,7 +198,6 @@ def main():
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     if args.profiling == 'none':
-        default_profile = pd.Series
         profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
     else:
         # find users
@@ -202,7 +205,7 @@ def main():
                                                                   n=args.number_users, selection=args.select_users))
         profile_users(profiles, args.profiling)
 
-    simulate_interviews(question_paths, profiles, args.profiling)
+    simulate_interviews(question_paths, profiles, args.profiling, args.variation)
 
 
 if __name__ == '__main__':
