@@ -42,6 +42,20 @@ from utils.api_interactions import (
     get_heatmap_descriptions
 )
 
+RESULT_FILES = {
+    1 : "out/simulated_interview_results_1.csv",
+    2 : "out/simulated_interview_results_2.csv",
+    3 : "out/simulated_interview_results_3.csv",
+    4 : "out/simulated_interview_results_4.csv"
+}
+
+PROTOCOL_FILES = {
+    1 : "out/interview_protocol_1.txt",
+    2 : "out/interview_protocol_2.txt",
+    3 : "out/interview_protocol_3.txt",
+    4 : "out/interview_protocol_4.txt"
+}
+
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def initialize_parser():
@@ -151,7 +165,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
-    with open("out/interview_protocol.txt", mode="a+") as f:
+    with open(PROTOCOL_FILES[variation], mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
@@ -198,7 +212,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
     """
     # find (previous) results    
-    results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
     #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
