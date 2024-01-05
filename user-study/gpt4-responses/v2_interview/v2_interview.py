@@ -169,6 +169,12 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
+        if variation == 4:
+            f.write(USER_PROMPTS[(4, "intro")])
+            f.write(USER_PROMPTS[(4, "heatmap")])
+            f.write("\n")
+            f.write(heatmap_description)
+            f.write("\n")
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
