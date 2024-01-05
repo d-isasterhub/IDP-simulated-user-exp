@@ -42,20 +42,6 @@ from utils.api_interactions import (
     generate_heatmap_descriptions
 )
 
-RESULT_FILES = {
-    1 : "out/simulated_interview_results_1.csv",
-    2 : "out/simulated_interview_results_2.csv",
-    3 : "out/simulated_interview_results_3.csv",
-    4 : "out/simulated_interview_results_4.csv"
-}
-
-PROTOCOL_FILES = {
-    1 : "out/interview_protocol_1.txt",
-    2 : "out/interview_protocol_2.txt",
-    3 : "out/interview_protocol_3.txt",
-    4 : "out/interview_protocol_4.txt"
-}
-
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def initialize_parser():
