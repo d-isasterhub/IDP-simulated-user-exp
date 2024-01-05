@@ -7,6 +7,14 @@ from .prompts import USER_INTRO_4, USER_HEATMAP_4, TOKENS_LOW
 from .questionnaire import find_imagepaths
 
 def get_llm_heatmap_description(image_path:str) -> str:
+    """Uses LLM to generate heatmap description for image found under the given path.
+    
+    Args:
+        image_path (str) : path to heatmap image
+    
+    Returns:
+        (str) : LLM-generated description
+    """
     response = openai.ChatCompletion.create(
             model = "gpt-4-vision-preview",
             max_tokens = 400,
@@ -18,6 +26,13 @@ def get_llm_heatmap_description(image_path:str) -> str:
     return actual_response
 
 def generate_heatmap_descriptions(question_IDs:[int]) -> None:
+    """For questions/heatmaps indicated by given IDs, asks LLM to generate descriptions and saves them to a csv file.
+    Only IDs for which no description exists yet will be considered. The CSV file will be sorted by question ID.
+    
+    Args:
+        question_IDs ([int]) : list of question IDs
+        
+    """
     heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
 
     # filter out IDs of questions that already have a heatmap description
