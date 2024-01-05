@@ -49,3 +49,7 @@ def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
     df = df.rename(columns={"Q_8" : "Q_4"})
 
     return df
+
+def get_heatmap_descriptions() -> dict[int, str]:
+    heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
+    return heatmaps_df.to_dict('records')

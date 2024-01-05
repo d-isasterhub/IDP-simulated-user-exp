@@ -33,7 +33,3 @@ def generate_heatmap_descriptions(question_IDs:[int]) -> None:
     heatmaps_df.sort_values(by=['id'], inplace=True)
     heatmaps_df.reset_index()
     heatmaps_df.to_csv("heatmap_descriptions.csv", na_rep='NA', index=False, quoting=csv.QUOTE_NONNUMERIC)
-
-def get_heatmap_descriptions() -> dict[int, str]:
-    heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
-    return heatmaps_df.to_dict('records')
