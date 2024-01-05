@@ -240,7 +240,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             if results_df.at[user_id, question].lower() not in birds:
                 try:
                     if variation==4:
-                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, heatmap_descriptions[q_index])
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation, heatmap_descriptions[q_index])
                     else:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation)
                 except Exception as e:
