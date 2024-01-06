@@ -20,7 +20,9 @@ from utils.api_messages import (
 from utils.file_interactions import (
     save_result_df,
     read_human_data,
-    get_heatmap_descriptions
+    get_heatmap_descriptions,
+    RESULT_FILES,
+    PROTOCOL_FILES
 )
 
 from utils.questionnaire import (
