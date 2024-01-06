@@ -24,10 +24,10 @@ def check_answer_exists():
     pass
 
 
-def save_result_df(df:pd.DataFrame):
+def save_result_df(df:pd.DataFrame, variation:int):
     df.sort_values(by=['id'], inplace=True)
     df.reset_index()
-    df.to_csv('out/simulated_interview_results.csv', na_rep='NA')
+    df.to_csv(RESULT_FILES[variation], na_rep='NA')
     
 
 # ------------------------------------------------ Before Interview ---------------------------------------------------------------
