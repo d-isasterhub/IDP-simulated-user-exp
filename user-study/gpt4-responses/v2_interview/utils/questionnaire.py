@@ -63,7 +63,6 @@ def get_true_answers(path_to_csv:str) -> dict[int, str]:
     return dict(zip(questions_df['ID'], questions_df['correct_answer']))
 
 
-# TODO: add variant later when merged
 def count_correct_answers(user_id : int, variation=int) -> int:
     """For a specific user, returns the number of questions correctly answered by the LLM.
     Missing answers (NAs) will be counted as wrong answers.
