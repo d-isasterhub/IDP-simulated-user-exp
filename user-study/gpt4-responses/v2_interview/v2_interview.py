@@ -369,26 +369,13 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
 def main():
     """Sets up and conducts interviews."""
 
-    # parse arguments
+    # ------------------------------------- parse arguments --------------------------------------------
+
     parser = initialize_parser()
     args = parser.parse_args()
-
-    # find questions
-    if args.subparser_name is None:
-        # if neither manual nor automatic selection of question was chosen, default to all questions
-        question_IDs = range(1, 21)
-    elif args.subparser_name == 'auto':
-        question_IDs = select_questions(args.number_questions, args.select_questions)
-    else:
-        # question IDs should be unique and between 1 and 20
-        question_IDs = set(args.questions)
-        valid_IDs = set(range(1, 21))
-        if not question_IDs.issubset(valid_IDs):
-            warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
-        question_IDs = list(question_IDs.intersection(valid_IDs))
-    print(os.getcwd())
-    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
+    # ----------------------------------------- profiling -----------------------------------------------
+
     if args.profiling == 'none':
         profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
     else:
@@ -397,12 +384,38 @@ def main():
                                                                   n=args.number_users, selection=args.select_users))
         profile_users(profiles, args.profiling)
 
-    if args.variation != 4:
-        simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+    # --------------------------------- predictions or agreements ---------------------------------------
+        
+    prediction = (args.subparser_name is None) or (args.subparser_name in ['auto', 'manual']) 
+
+    if prediction:
+
+        # find questions
+        if args.subparser_name is None:
+            # if neither manual nor automatic selection of question was chosen, default to all questions
+            question_IDs = range(1, 21)
+        elif args.subparser_name == 'auto':
+            question_IDs = select_questions(args.number_questions, args.select_questions)
+        elif args.subparser_name == 'manual':
+            # question IDs should be unique and between 1 and 20
+            question_IDs = set(args.questions)
+            valid_IDs = set(range(1, 21))
+            if not question_IDs.issubset(valid_IDs):
+                warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
+            question_IDs = list(question_IDs.intersection(valid_IDs))
+        print(os.getcwd())
+        question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
+
+        if args.variation != 4:
+            simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+        else:
+            generate_heatmap_descriptions(question_IDs)
+            heatmap_descriptions = get_heatmap_descriptions()
+            simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
+
     else:
-        generate_heatmap_descriptions(question_IDs)
-        heatmap_descriptions = get_heatmap_descriptions()
-        simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
+
+        simulate_agreements(args.questions, profiles, args.profiling, args.variation, args.accuracy, args.example)
 
 
 if __name__ == '__main__':
