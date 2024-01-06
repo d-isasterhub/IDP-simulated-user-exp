@@ -33,7 +33,9 @@ from utils.questionnaire import (
 from utils.prompts import (
     SYSTEM,
     USER_PROMPTS,
-    TOKENS_LOW
+    TOKENS_LOW,
+    AGREEMENT_PROMPTS,
+    AGREEMENT_QUESTIONS
 )
 
 from utils.answer_processing import (
@@ -74,6 +76,12 @@ def initialize_parser():
                                           '\t--questions\tid(s) of questions to simulate. expects unique values in [1, 20]')
     manual_parser.add_argument('--questions', type=int, nargs='+',
                                 help="id(s) of questions to simulate")
+
+    agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
+    agreement_parser.add_argument('--questions', type=int, nargs='+', choices=range(1, 7), 
+                                help="questions to simulate")
+    agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
+                                help="which question to show the LLM as example, default: %(default)")
 
     return parser
 
@@ -126,6 +134,80 @@ def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str,
         )
     actual_response = response["choices"][0]["message"]["content"] # have a string
     return actual_response
+
+
+def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, example_prompt: str, question_prompt: str) -> str:
+    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+    
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path (str) : path to the image corresponding to the question
+            profiling_level (str) : level of profiling to give
+            heatmap_description (str) : heatmap description associated with the question
+            question (str) : adapted question prompt with necessary profiling info
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                get_msg(role="user", prompt=example_prompt) +\
+                get_msg(role="assistant", prompt=str(example_a)) +\
+                get_msg(role="user", prompt=question_prompt) 
+        )
+
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
+
+
+def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling_level : str) -> str:
+    """Simulates an interview by profiling a user and asking an agreement study question. 
+        Prompts and full response including reasoning are written to "interview_protocol.txt".
+
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path (str) : path to the image corresponding to the question
+            q_num (int) : number of question in a series of interviews
+            profiling (str) : level of profiling to give
+        
+        Returns:
+            (str) : simulated and cleaned question answer
+    """
+    EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
+        AGREEMENT_PROMPTS["previous"] +\
+        ("" if profiling_level == 'none' else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
+        AGREEMENT_PROMPTS["task"] +\
+        AGREEMENT_PROMPTS["question"] +\
+        AGREEMENT_QUESTIONS[example_q] +\
+        AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
+
+    QUESTION = AGREEMENT_PROMPTS["question"] +\
+        AGREEMENT_QUESTIONS[actual_q] +\
+        AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
+
+    with open("agreement_protocol.txt", mode="a+") as f:
+        f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
+        if profiling_level == 'full':
+            f.write(user.profiling_prompt)
+        f.write(EXAMPLE)
+        f.write("\n")
+        f.write(str(example_a))
+        f.write("\n")
+        f.write(QUESTION)
+        f.write("\n")
+
+        llm_response = LLM_agreement(user, example_a, profiling_level, EXAMPLE, QUESTION)
+        
+        answer = llm_response # no processing here (yet)
+        
+        f.write("Answer:\n")
+        f.write(answer)
+        f.write("\n\n")
+
+    return answer
 
 
 def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling_level : str, variation : int, heatmap_description:str=None) -> str:

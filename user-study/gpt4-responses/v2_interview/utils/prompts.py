@@ -241,3 +241,11 @@ USER_PROMPTS = {
     (4, "heatmap") : USER_HEATMAP_4
 }
 
+# TODO: fill
+AGREEMENT_PROMPTS = {
+
+}
+
+AGREEMENT_QUESTIONS = {
+
+}
