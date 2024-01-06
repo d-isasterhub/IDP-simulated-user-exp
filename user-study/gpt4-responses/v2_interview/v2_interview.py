@@ -19,7 +19,8 @@ from utils.api_messages import (
 
 from utils.file_interactions import (
     save_result_df,
-    read_human_data
+    read_human_data,
+    get_heatmap_descriptions
 )
 
 from utils.questionnaire import (
@@ -29,13 +30,16 @@ from utils.questionnaire import (
 
 from utils.prompts import (
     SYSTEM,
-    USER_INTRO,
-    USER_PROFILING,
-    USER_QUESTION
+    USER_PROMPTS,
+    TOKENS_LOW
 )
 
 from utils.answer_processing import (
     process_llm_output
+)
+
+from utils.api_interactions import (
+    generate_heatmap_descriptions
 )
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -51,6 +55,8 @@ def initialize_parser():
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
     parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
                                 help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
+    parser.add_argument('--variation', default=1, type=int, choices=[1, 2, 3, 4],
+                                help="what variation of prompting to use (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
 
@@ -70,8 +76,58 @@ def initialize_parser():
     return parser
 
 
-def single_interview(user : UserProfile, image_path : str, q_num : int, profiling_level : str) -> str:
-    """Simulates an interview by profiling a user and asking a user study question. 
+def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, heatmap_description: str, question: str) -> str:
+    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+    
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path (str) : path to the image corresponding to the question
+            profiling_level (str) : level of profiling to give
+            heatmap_description (str) : heatmap description associated with the question
+            question (str) : adapted question prompt with necessary profiling info
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                get_msg_with_image(role="user", prompt=USER_PROMPTS[(4, "intro")]+USER_PROMPTS[(4, "heatmap")], image=image_path) +\
+                get_msg(role="assistant", prompt=heatmap_description) +\
+                get_msg(role="user", prompt=question) 
+        )
+
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
+
+
+def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str, question: str) -> str:
+    """Main part of the interview simulation, variants 1/2/3: profiles a user and then asks a user study question.
+    
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path (str) : path to the image corresponding to the question
+            profiling_level (str) : level of profiling to give
+            question (str) : adapted question prompt with necessary profiling info
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                get_msg_with_image(role="user", prompt=question, image=image_path)
+        )
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
+
+
+def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling_level : str, variation : int, heatmap_description:str=None) -> str:
+    """Simulates an interview by first profiling a user and then asking a user study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
@@ -79,34 +135,42 @@ def single_interview(user : UserProfile, image_path : str, q_num : int, profilin
             image_path (str) : path to the image corresponding to the question
             user_num (int) : number of user in a series of interviews
             q_num (int) : number of question in a series of interviews
-            profiling (str) : level of profiling to give
+            profiling_level (str) : level of profiling to give
+            variation (int) : variation of prompts to use
         
         Returns:
             (str) : simulated and cleaned question answer
     """
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
-    QUESTION = USER_INTRO + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROFILING)) + USER_QUESTION
+
+    if variation == 4:
+        QUESTION = ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROMPTS[(4, "profiling")])) + USER_PROMPTS[(4, "question")] + " " + TOKENS_LOW
+    else:
+        QUESTION = USER_PROMPTS[(variation, "intro")] + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROMPTS[(variation, "profiling")])) + USER_PROMPTS[(variation, "question")]
+    # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
-    with open("out/interview_protocol.txt", mode="a+") as f:
+    with open(PROTOCOL_FILES[variation], mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
+        if variation == 4:
+            f.write(USER_PROMPTS[(4, "intro")])
+            f.write(USER_PROMPTS[(4, "heatmap")])
+            f.write("\n")
+            f.write(heatmap_description)
+            f.write("\n")
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
 
-        response = openai.ChatCompletion.create(
-            model = "gpt-4-vision-preview",
-            max_tokens = 400,
-            messages = 
-                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
-                get_msg_with_image(role="user", prompt=QUESTION, image=image_path)
-        )
-        actual_response = response["choices"][0]["message"]["content"] # have a string
-
-        reasoning, answer = process_llm_output(actual_response)
+        if variation == 4:
+            llm_response = LLM_prediction_4(user, image_path, profiling_level, heatmap_description, QUESTION)
+        else:
+            llm_response = LLM_prediction_123(user, image_path, profiling_level, QUESTION)
+        
+        reasoning, answer = process_llm_output(llm_response)
         
         f.write("Reasoning:\n")
         f.write(reasoning)
@@ -129,16 +193,18 @@ def profile_users(profiles:[UserProfile], profiling_level:str):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str):
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str, variation:int, heatmap_descriptions:dict[int, str]=None):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (str) : level of profiling to give
+            variation (int) : prompting variant
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
     """
     # find (previous) results    
-    results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
     #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
@@ -159,7 +225,10 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    results_df.at[user_id, question] = single_interview(user, q_path, q_index, profiling_level)
+                    if variation==4:
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation, heatmap_descriptions[q_index])
+                    else:
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -194,7 +263,6 @@ def main():
     question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
     if args.profiling == 'none':
-        default_profile = pd.Series
         profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
     else:
         # find users
@@ -202,7 +270,12 @@ def main():
                                                                   n=args.number_users, selection=args.select_users))
         profile_users(profiles, args.profiling)
 
-    simulate_interviews(question_paths, profiles, args.profiling)
+    if args.variation != 4:
+        simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+    else:
+        generate_heatmap_descriptions(question_IDs)
+        heatmap_descriptions = get_heatmap_descriptions()
+        simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
 
 
 if __name__ == '__main__':

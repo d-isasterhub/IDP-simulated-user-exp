@@ -2,6 +2,21 @@
 import pandas as pd
 import random
 
+# ------------------------------------------------ FILE NAMES ----------------------------------------
+
+RESULT_FILES = {
+    1 : "out/simulated_interview_results_1.csv",
+    2 : "out/simulated_interview_results_2.csv",
+    3 : "out/simulated_interview_results_3.csv",
+    4 : "out/simulated_interview_results_4.csv"
+}
+
+PROTOCOL_FILES = {
+    1 : "out/interview_protocol_1.txt",
+    2 : "out/interview_protocol_2.txt",
+    3 : "out/interview_protocol_3.txt",
+    4 : "out/interview_protocol_4.txt"
+}
 
 # ----------------------------------------------- During interview ---------------------------------------------------------------
 
@@ -49,3 +64,12 @@ def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
     df = df.rename(columns={"Q_8" : "Q_4"})
 
     return df
+
+def get_heatmap_descriptions() -> dict[int, str]:
+    """Reads all available heatmap descriptions from csv files.
+    
+    Returns:
+        ([dict[int, str]]) : a dict containing all heatmap descriptions, keys are question numbers
+    """
+    heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
+    return heatmaps_df.to_dict('records')

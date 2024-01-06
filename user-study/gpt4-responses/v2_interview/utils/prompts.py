@@ -221,3 +221,23 @@ USER_AGREEMENT_ANSWER = "Answer with the number only."
 #     "2) Choose the bird which you gave the highest rating.\n"\
 #     "3) Answer with your chosen bird species only using one of the following four options: "\
 #     "Crested Auklet, Least Auklet, Parakeet Auklet, Rhinoceros Auklet"
+
+# ================================================= DICT ==========================
+
+
+USER_PROMPTS = {
+    (1, "intro") : USER_INTRO_1,
+    (1, "profiling") : USER_PROFILING_1,
+    (1, "question") : USER_QUESTION_1,
+    (2, "intro") : USER_INTRO_2,
+    (2, "profiling") : USER_PROFILING_2,
+    (2, "question") : USER_QUESTION_2,
+    (3, "intro") : USER_INTRO_3,
+    (3, "profiling") : USER_PROFILING_3,
+    (3, "question") : USER_QUESTION_3,
+    (4, "intro") : USER_INTRO_4,
+    (4, "profiling") : USER_PROFILING_4,
+    (4, "question") : USER_QUESTION_4,
+    (4, "heatmap") : USER_HEATMAP_4
+}
+
