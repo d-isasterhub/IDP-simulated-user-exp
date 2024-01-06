@@ -1,5 +1,6 @@
 import random
 import pandas as pd
+from .profiling import UserProfile, Auklets
 
 
 def find_imagepaths(path_to_csv:str, indices:[int]) -> [(int, str)]:
@@ -46,3 +47,37 @@ def select_questions(n=1, method='balanced') -> [int]:
         question_IDs = range(1, n+1) 
 
     return question_IDs
+
+def get_true_answers(path_to_csv:str) -> dict[int, str]:
+    """Reads the correct answers to the specified questions from given file.
+
+    Args:
+        path_to_csv (str) : path to csv file with correct answers for each question
+
+    Returns:
+        dict[int, str] : dict mapping question indices to correct answer
+    """
+    questions_df = pd.read_csv(path_to_csv)
+    return dict(zip(questions_df['ID'], questions_df['correct_answer']))
+
+
+# TODO: add variant later when merged
+def count_correct_answers(user_id : int) -> int:
+    """For a specific user, returns the number of questions correctly answered by the LLM.
+    Missing answers (NAs) will be counted as wrong answers.
+    
+    Args:
+        user_id (int) : ID of user
+    
+    Returns:
+        (int) : number of correct answers
+    
+    """
+    results_df = pd.read_csv("out/simulated_interview_results.csv", index_col = "id", keep_default_na=False)
+    user_results = results_df.filter(like='LLM_Q', axis=1).iloc[user_id]
+
+    true_answers = get_true_answers("prediction_questions.csv")
+
+    correct_answers = [user_results['LLM_Q' + str(i)] == true_answers[i] for i in range(1, 21)].count(True)
+
+    return correct_answers
