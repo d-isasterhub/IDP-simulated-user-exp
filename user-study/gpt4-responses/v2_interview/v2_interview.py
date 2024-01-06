@@ -79,7 +79,7 @@ def initialize_parser():
                                 help="id(s) of questions to simulate")
 
     agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
-    agreement_parser.add_argument('--questions', type=int, nargs='+', choices=range(1, 7), 
+    agreement_parser.add_argument('--questions', type=int, nargs='+',# choices=range(1, 7), 
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
@@ -188,7 +188,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open("agreement_protocol.txt", mode="a+") as f:
+    with open("out/agreement_protocol.txt", mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
