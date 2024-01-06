@@ -27,7 +27,8 @@ from utils.file_interactions import (
 
 from utils.questionnaire import (
     select_questions,
-    find_imagepaths
+    find_imagepaths,
+    count_correct_answers
 )
 
 from utils.prompts import (
@@ -82,6 +83,8 @@ def initialize_parser():
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
+    agreement_parser.add_argument('--accuracy', default=True, type=bool,
+                                  help="whether to include the number of correct questions in prompting")
 
     return parser
 
@@ -163,22 +166,19 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, examp
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling_level : str) -> str:
+def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling_level : str, with_accuracy: bool, number_correct: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
-            user (UserProfile) : object representing the user that is simulated
-            image_path (str) : path to the image corresponding to the question
-            q_num (int) : number of question in a series of interviews
-            profiling (str) : level of profiling to give
-        
+            To do
         Returns:
             (str) : simulated and cleaned question answer
     """
     EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
         AGREEMENT_PROMPTS["previous"] +\
         ("" if profiling_level == 'none' else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
+        ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
         AGREEMENT_PROMPTS["task"] +\
         AGREEMENT_PROMPTS["question"] +\
         AGREEMENT_QUESTIONS[example_q] +\
@@ -189,7 +189,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
     with open("agreement_protocol.txt", mode="a+") as f:
-        f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
+        f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
         f.write(EXAMPLE)
@@ -277,6 +277,49 @@ def profile_users(profiles:[UserProfile], profiling_level:str):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level:str, variation:int, with_accuracy: bool, example_q: int):
+    """Simulates interview for each user-question combination and saves results to output file.
+
+        Args:
+            question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
+            profiles ([UserProfile]) : objects representing the users to simulate
+            profiling (str) : level of profiling to give
+            variation (int) : prompting variant
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+    """
+    # find (previous) results    
+    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    
+    options = range(1, 8)
+
+    # simulate interview for each user and question
+    for user in profiles:
+
+        user_id = user.user_background['id']
+        number_correct = count_correct_answers(user_id, variation)
+
+        # if the user does not already have a row in the results data frame, create a new one
+        if user_id not in list(results_df.index):
+            print(user_id)
+            results_df.loc[user_id] = 'NA'
+
+        # request gpt-4 responses for not yet (properly) answered questions
+        for q in questions:
+            example_a = user.human_agreements[q]
+            question = "LLM_A" + str(q) # TODO: will have to change this probably
+            print(results_df.at[user_id, question])
+            if results_df.at[user_id, question] not in options:
+                try:
+                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling_level, with_accuracy, number_correct)
+                except Exception as e:
+                    # TODO: this does not work
+                    print("Response generation failed:\n")
+                    print(e)
+
+    # saving the result dataframe again
+    save_result_df(results_df, variation)
+
+
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str, variation:int, heatmap_descriptions:dict[int, str]=None):
     """Simulates interview for each user-question combination and saves results to output file.
 
@@ -319,7 +362,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
                     print(e)
 
     # saving the result dataframe again
-    save_result_df(results_df)
+    save_result_df(results_df, variation)
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
