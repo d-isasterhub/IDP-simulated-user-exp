@@ -33,8 +33,16 @@ For example, to simulate the first 5 humans in the dataset, run
     python v2_interview.py --number_users=5 --select_users=first
 ```
 
+##### Prompting options
+To select a prompt varation, use the `--variation` option. The available options are
+- `1`: with profiling, but no reasoning
+- `2`: deprecated
+- `3`: with profiling and reasoning, and hallucination
+- `4`: first generating heatmap descriptions, then asking questions
+By default, option `1` will be used.
+
 ##### Question options
-There are two ways to choose which questions will be simulated.
+For the prediction questions, there are two ways to choose which questions will be simulated.
 1. `auto` automatically chooses a number of questions (can be chosen with `--number_questions`, default: 20) in one of three ways (can be chosen with `--select_questions`, default: `balanced`):
     - `random`
     - `balanced` (keeps the number of questions similar between classes)
@@ -51,6 +59,11 @@ For example, to simulate questions 1, 7, and 13, run
 ```
     python v2_interview.py manual --questions 1 7 13
 ```
+
+3. Similarly, one can choose to simulate the agreement questions with the `agreement` option. There are multiple additional options for this:
+- `--questions`: which of the agreement questions to simulate
+- `--example`: which question to show the LLM as an example (by default: the first one)
+- `--accuracy`: whether to include the number of questions that the user answered correctly in the prompt (default: True)
 
 ## Outputs
 

@@ -174,7 +174,6 @@ USER_AGREEMENT_SCALE = "Answer on a scale of 1 to 7, where 1 means completely di
 
 USER_AGREEMENT_ANSWER = "Answer with the number only."
 
-
 # ============================================= OUTDATED =============================================
 
 # Not used for any results, too long
@@ -241,3 +240,23 @@ USER_PROMPTS = {
     (4, "heatmap") : USER_HEATMAP_4
 }
 
+# TODO: fill
+AGREEMENT_PROMPTS = {
+    "intro" : USER_AGREEMENT_INTRO,
+    "previous" : USER_AGREEMENT_PREVIOUS,
+    "profiling" : USER_AGREEMENT_PROFILING,
+    "accuracy" : USER_AGREEMENT_ACCURACY,
+    "task" : USER_AGREEMENT_TASK,
+    "question" : USER_AGREEMENT_QUESTION,
+    "scale" : USER_AGREEMENT_SCALE,
+    "answer" : USER_AGREEMENT_ANSWER
+}
+
+AGREEMENT_QUESTIONS = {
+    1 : "I understood the explanations within the context of this study. ",
+    2 : "The explanations provided enough information for me to understand how the model arrived at its decision. ",
+    3 : "I think that most people would learn to understand the explanations very quickly. ",
+    4 : "I would like to have more examples to understand the machine’s reasoning and how the model arrived at its decision. ",
+    5 : "The explanations were useful and helped me understand the model's reasoning. ",
+    6 : "I believe that I could provide an explanation similar to the model's explanation for a new image. ",
+}

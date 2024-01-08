@@ -20,18 +20,23 @@ from utils.api_messages import (
 from utils.file_interactions import (
     save_result_df,
     read_human_data,
-    get_heatmap_descriptions
+    get_heatmap_descriptions,
+    RESULT_FILES,
+    PROTOCOL_FILES
 )
 
 from utils.questionnaire import (
     select_questions,
-    find_imagepaths
+    find_imagepaths,
+    count_correct_answers
 )
 
 from utils.prompts import (
     SYSTEM,
     USER_PROMPTS,
-    TOKENS_LOW
+    TOKENS_LOW,
+    AGREEMENT_PROMPTS,
+    AGREEMENT_QUESTIONS
 )
 
 from utils.answer_processing import (
@@ -72,6 +77,14 @@ def initialize_parser():
                                           '\t--questions\tid(s) of questions to simulate. expects unique values in [1, 20]')
     manual_parser.add_argument('--questions', type=int, nargs='+',
                                 help="id(s) of questions to simulate")
+
+    agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
+    agreement_parser.add_argument('--questions', type=int, nargs='+',# choices=range(1, 7), 
+                                help="questions to simulate")
+    agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
+                                help="which question to show the LLM as example, default: %(default)")
+    agreement_parser.add_argument('--accuracy', default=True, type=bool,
+                                  help="whether to include the number of correct questions in prompting")
 
     return parser
 
@@ -124,6 +137,77 @@ def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str,
         )
     actual_response = response["choices"][0]["message"]["content"] # have a string
     return actual_response
+
+
+def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, example_prompt: str, question_prompt: str) -> str:
+    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+    
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path (str) : path to the image corresponding to the question
+            profiling_level (str) : level of profiling to give
+            heatmap_description (str) : heatmap description associated with the question
+            question (str) : adapted question prompt with necessary profiling info
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                get_msg(role="user", prompt=example_prompt) +\
+                get_msg(role="assistant", prompt=str(example_a)) +\
+                get_msg(role="user", prompt=question_prompt) 
+        )
+
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
+
+
+def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling_level : str, with_accuracy: bool, number_correct: int) -> str:
+    """Simulates an interview by profiling a user and asking an agreement study question. 
+        Prompts and full response including reasoning are written to "interview_protocol.txt".
+
+        Args:
+            To do
+        Returns:
+            (str) : simulated and cleaned question answer
+    """
+    EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
+        AGREEMENT_PROMPTS["previous"] +\
+        ("" if profiling_level == 'none' else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
+        ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
+        AGREEMENT_PROMPTS["task"] +\
+        AGREEMENT_PROMPTS["question"] +\
+        AGREEMENT_QUESTIONS[example_q] +\
+        AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
+
+    QUESTION = AGREEMENT_PROMPTS["question"] +\
+        AGREEMENT_QUESTIONS[actual_q] +\
+        AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
+
+    with open("out/agreement_protocol.txt", mode="a+") as f:
+        f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
+        if profiling_level == 'full':
+            f.write(user.profiling_prompt)
+        f.write(EXAMPLE)
+        f.write("\n")
+        f.write(str(example_a))
+        f.write("\n")
+        f.write(QUESTION)
+        f.write("\n")
+
+        llm_response = LLM_agreement(user, example_a, profiling_level, EXAMPLE, QUESTION)
+        
+        answer = llm_response # no processing here (yet)
+        
+        f.write("Answer:\n")
+        f.write(answer)
+        f.write("\n\n")
+
+    return answer
 
 
 def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling_level : str, variation : int, heatmap_description:str=None) -> str:
@@ -193,6 +277,49 @@ def profile_users(profiles:[UserProfile], profiling_level:str):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level:str, variation:int, with_accuracy: bool, example_q: int):
+    """Simulates interview for each user-question combination and saves results to output file.
+
+        Args:
+            question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
+            profiles ([UserProfile]) : objects representing the users to simulate
+            profiling (str) : level of profiling to give
+            variation (int) : prompting variant
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+    """
+    # find (previous) results    
+    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    
+    options = range(1, 8)
+
+    # simulate interview for each user and question
+    for user in profiles:
+
+        user_id = user.user_background['id']
+        number_correct = count_correct_answers(user_id, variation)
+
+        # if the user does not already have a row in the results data frame, create a new one
+        if user_id not in list(results_df.index):
+            print(user_id)
+            results_df.loc[user_id] = 'NA'
+
+        # request gpt-4 responses for not yet (properly) answered questions
+        for q in questions:
+            example_a = user.human_agreements[q]
+            question = "LLM_A" + str(q) # TODO: will have to change this probably
+            print(results_df.at[user_id, question])
+            if results_df.at[user_id, question] not in options:
+                try:
+                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling_level, with_accuracy, number_correct)
+                except Exception as e:
+                    # TODO: this does not work
+                    print("Response generation failed:\n")
+                    print(e)
+
+    # saving the result dataframe again
+    save_result_df(results_df, variation)
+
+
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str, variation:int, heatmap_descriptions:dict[int, str]=None):
     """Simulates interview for each user-question combination and saves results to output file.
 
@@ -235,33 +362,20 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
                     print(e)
 
     # saving the result dataframe again
-    save_result_df(results_df)
+    save_result_df(results_df, variation)
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def main():
     """Sets up and conducts interviews."""
 
-    # parse arguments
+    # ------------------------------------- parse arguments --------------------------------------------
+
     parser = initialize_parser()
     args = parser.parse_args()
-
-    # find questions
-    if args.subparser_name is None:
-        # if neither manual nor automatic selection of question was chosen, default to all questions
-        question_IDs = range(1, 21)
-    elif args.subparser_name == 'auto':
-        question_IDs = select_questions(args.number_questions, args.select_questions)
-    else:
-        # question IDs should be unique and between 1 and 20
-        question_IDs = set(args.questions)
-        valid_IDs = set(range(1, 21))
-        if not question_IDs.issubset(valid_IDs):
-            warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
-        question_IDs = list(question_IDs.intersection(valid_IDs))
-    print(os.getcwd())
-    question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
     
+    # ----------------------------------------- profiling -----------------------------------------------
+
     if args.profiling == 'none':
         profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
     else:
@@ -270,12 +384,38 @@ def main():
                                                                   n=args.number_users, selection=args.select_users))
         profile_users(profiles, args.profiling)
 
-    if args.variation != 4:
-        simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+    # --------------------------------- predictions or agreements ---------------------------------------
+        
+    prediction = (args.subparser_name is None) or (args.subparser_name in ['auto', 'manual']) 
+
+    if prediction:
+
+        # find questions
+        if args.subparser_name is None:
+            # if neither manual nor automatic selection of question was chosen, default to all questions
+            question_IDs = range(1, 21)
+        elif args.subparser_name == 'auto':
+            question_IDs = select_questions(args.number_questions, args.select_questions)
+        elif args.subparser_name == 'manual':
+            # question IDs should be unique and between 1 and 20
+            question_IDs = set(args.questions)
+            valid_IDs = set(range(1, 21))
+            if not question_IDs.issubset(valid_IDs):
+                warnings.warn("Question IDs outside of valid range [1, 20] will be ignored.")
+            question_IDs = list(question_IDs.intersection(valid_IDs))
+        print(os.getcwd())
+        question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
+
+        if args.variation != 4:
+            simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+        else:
+            generate_heatmap_descriptions(question_IDs)
+            heatmap_descriptions = get_heatmap_descriptions()
+            simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
+
     else:
-        generate_heatmap_descriptions(question_IDs)
-        heatmap_descriptions = get_heatmap_descriptions()
-        simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
+
+        simulate_agreements(args.questions, profiles, args.profiling, args.variation, args.accuracy, args.example)
 
 
 if __name__ == '__main__':
