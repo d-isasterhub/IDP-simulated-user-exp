@@ -28,7 +28,8 @@ from utils.file_interactions import (
 from utils.questionnaire import (
     select_questions,
     find_imagepaths,
-    count_correct_answers
+    count_correct_LLM_answers,
+    count_correct_human_answers
 )
 
 from utils.prompts import (
@@ -296,7 +297,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level
     for user in profiles:
 
         user_id = user.user_background['id']
-        number_correct = count_correct_answers(user_id, variation)
+        number_correct = count_correct_human_answers(user)
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
