@@ -208,7 +208,7 @@ agreement <- paste0("A", 2:6)
 colnames(human_agreement_dt) <- c("id", agreement)
 
 tidy <- getTidyDt(agreement, human_agreement_dt, llm_dt) %>% dcast(... ~ User)
-tidy[, diff := Human - LLM]
+tidy[, diff := abs(Human - LLM)]
 tidy
 summary(tidy)
 tidy[, .(mean_diff = mean(diff, na.rm = T), sd_diff = sd(diff, na.rm = T))]
