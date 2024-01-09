@@ -1,6 +1,10 @@
 import random
 import pandas as pd
 
+from .profiling import (
+    UserProfile
+)
+
 from .file_interactions import (
     RESULT_FILES
 )
@@ -63,7 +67,7 @@ def get_true_answers(path_to_csv:str) -> dict[int, str]:
     return dict(zip(questions_df['ID'], questions_df['correct_answer']))
 
 
-def count_correct_answers(user_id : int, variation=int) -> int:
+def count_correct_LLM_answers(user_id : int, variation=int) -> int:
     """For a specific user, returns the number of questions correctly answered by the LLM.
     Missing answers (NAs) will be counted as wrong answers.
     
@@ -80,5 +84,23 @@ def count_correct_answers(user_id : int, variation=int) -> int:
     true_answers = get_true_answers("prediction_questions.csv")
 
     correct_answers = [user_results['LLM_Q' + str(i)] == true_answers[i] for i in range(1, 21)].count(True)
+
+    return correct_answers
+
+
+def count_correct_human_answers(user: UserProfile) -> int:
+    """For a specific user, returns the number of correctly answered questions.
+    Missing answers (NAs) will be counted as wrong answers.
+    
+    Args:
+        user (UserProfile) : the user
+    
+    Returns:
+        (int) : number of correct answers
+
+    """
+    true_answers = get_true_answers("prediction_questions.csv")
+
+    correct_answers = [user.human_predictions[i] == true_answers[i] for i in range(1, 21)].count(True)
 
     return correct_answers
