@@ -24,7 +24,7 @@ library(dplyr)
 ```
 
 ```{r sim version}
-version <- 3
+version <- 1
 ```
 
 ## Visualization: Descriptive Plots
@@ -209,6 +209,7 @@ colnames(human_agreement_dt) <- c("id", agreement)
 
 tidy <- getTidyDt(agreement, human_agreement_dt, llm_dt) %>% dcast(... ~ User)
 tidy[, diff := Human - LLM]
+tidy
 summary(tidy)
 tidy[, .(mean_diff = mean(diff, na.rm = T), sd_diff = sd(diff, na.rm = T))]
 
