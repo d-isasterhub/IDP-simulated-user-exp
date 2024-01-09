@@ -23,6 +23,9 @@ library(tidyr)
 library(dplyr)
 ```
 
+```{r sim version}
+version <- 3
+```
 
 ## Visualization: Descriptive Plots
 
@@ -35,7 +38,9 @@ human_dt <- fread(
 human_dt[, id := 0:(nrow(human_dt)-1)]
 
 llm_dt <- fread(
-  "../gpt4-responses/v2_interview/out/simulated_interview_results.csv"
+  paste("../gpt4-responses/v2_interview/out/simulated_interview_results_",
+        as.character(version),
+        ".csv", sep = "")
 )
 
 correct_dt <- fread("../gpt4-responses/v2_interview/prediction_questions.csv") %>%
@@ -57,7 +62,8 @@ getTidyDt <- function(questions, dt_h, dt_llm) {
   llm_cols <- paste0("LLM_", questions)
   dt_llm <- dt_llm[,mget(c("id", llm_cols))]
   
-  # Merge data tables
+  # Merge data tables: id | User | Question | Prediction
+  # Example: 0 | Human | Q1 | Crested Auklet
   dt <- merge(dt_h, dt_llm, by = "id")
   dt %>% melt(
     id.vars = "id",
@@ -67,7 +73,7 @@ getTidyDt <- function(questions, dt_h, dt_llm) {
     col = "Question",
     into = c("User", "Question"),
     remove = TRUE
-  )
+  ) %>% as.data.table()
 }
 
 getHumanAccuracyDt <- function(questions, dt_h, dt_llm){
@@ -98,6 +104,8 @@ acc_dt
 
 human_acc_dt <- getHumanAccuracyDt(questions, human_dt, llm_dt)
 human_acc_dt
+
+getTidyDt(questions, human_dt, llm_dt)
 ```
 
 ```{r Plotting}
@@ -185,7 +193,29 @@ getAccuracyPlot(acc_dt, questions, title)
 questions <- paste0("Q", 1:20)
 title <- "Guessing the classification for all birds correctly"
 getAccuracyPlot(acc_dt, questions, title)
+
+questions <- paste0("Q", 1:20)
+title <- "Guessing the classification for all birds correctly"
+getAccuracyPlot(acc_dt, questions, title)
 ```
+
+## Temporary Agreement Analysis
+
+```{r Data Agreement Plot}
+human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+human_agreement_dt <- human_dt[, mget(c("id", human_agreement))]
+agreement <- paste0("A", 2:6)
+colnames(human_agreement_dt) <- c("id", agreement)
+
+tidy <- getTidyDt(agreement, human_agreement_dt, llm_dt) %>% dcast(... ~ User)
+tidy[, diff := Human - LLM]
+summary(tidy)
+tidy[, .(mean_diff = mean(diff, na.rm = T), sd_diff = sd(diff, na.rm = T))]
+
+agr_human_acc_dt <- getHumanAccuracyDt(agreement, human_agreement_dt, llm_dt)
+agr_human_acc_dt
+```
+
 
 ## Data Tables (outdated)
 
