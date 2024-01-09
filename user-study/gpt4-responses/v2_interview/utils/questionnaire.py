@@ -100,8 +100,6 @@ def count_correct_human_answers(user: UserProfile) -> int:
 
     """
     true_answers = get_true_answers("prediction_questions.csv")
-    print("True:\n")
-    print(true_answers)
 
     correct_answers = [user.human_predictions[i] == true_answers[i] for i in range(1, 21)].count(True)
 
