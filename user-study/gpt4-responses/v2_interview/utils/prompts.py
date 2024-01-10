@@ -9,7 +9,7 @@ SYSTEM = "You are AGE years old, your gender is GENDER and your employment statu
 
 # =============================================== USER ===============================================
 
-# Currently, we need to manually set the prompts
+# Previously, we needed to manually set the prompts
 
 USER_INTRO = "Attached is an image that consists of two sub-images. The top of the given image "\
     "displays the original image of a bird and the bottom displays the same image combined with a "\
@@ -240,7 +240,6 @@ USER_PROMPTS = {
     (4, "heatmap") : USER_HEATMAP_4
 }
 
-# TODO: fill
 AGREEMENT_PROMPTS = {
     "intro" : USER_AGREEMENT_INTRO,
     "previous" : USER_AGREEMENT_PREVIOUS,
