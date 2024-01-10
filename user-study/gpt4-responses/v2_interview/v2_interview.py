@@ -21,8 +21,8 @@ from utils.file_interactions import (
     save_result_df,
     read_human_data,
     get_heatmap_descriptions,
-    RESULT_FILES,
-    PROTOCOL_FILES
+    bird_output_path,
+    agree_output_path
 )
 
 from utils.questionnaire import (
@@ -61,7 +61,7 @@ def initialize_parser():
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
     parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
                                 help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--variation', default=1, type=int, choices=[1, 2, 3, 4],
+    parser.add_argument('--variation', default=1, type=int, choices=[1, 2, 3, 4, 5, 6],
                                 help="what variation of prompting to use (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
@@ -189,7 +189,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open("out/agreement_protocol.txt", mode="a+") as f:
+    with open(agree_output_path(with_accuracy, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
@@ -236,7 +236,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
-    with open(PROTOCOL_FILES[variation], mode="a+") as f:
+    with open(bird_output_path(variation, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling_level == 'full':
             f.write(user.profiling_prompt)
@@ -289,7 +289,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level
             heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
     """
     # find (previous) results    
-    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    results_df = pd.read_csv(agree_output_path(with_accuracy, "results"), index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
 
@@ -332,7 +332,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
     """
     # find (previous) results    
-    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    results_df = pd.read_csv(bird_output_path(variation, "results"), index_col = "id", keep_default_na=False)
     #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
@@ -407,7 +407,7 @@ def main():
         print(os.getcwd())
         question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
 
-        if args.variation != 4:
+        if args.variation < 5:
             simulate_interviews(question_paths, profiles, args.profiling, args.variation)
         else:
             generate_heatmap_descriptions(question_IDs)

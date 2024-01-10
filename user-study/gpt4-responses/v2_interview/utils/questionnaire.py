@@ -6,7 +6,7 @@ from .profiling import (
 )
 
 from .file_interactions import (
-    RESULT_FILES
+    bird_output_path
 )
 
 def find_imagepaths(path_to_csv:str, indices:[int]) -> [(int, str)]:
@@ -78,7 +78,7 @@ def count_correct_LLM_answers(user_id : int, variation=int) -> int:
         (int) : number of correct answers
     
     """
-    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    results_df = pd.read_csv(bird_output_path(variation, "results"), index_col = "id", keep_default_na=False)
     user_results = results_df.filter(like='LLM_Q', axis=1).iloc[user_id]
 
     true_answers = get_true_answers("prediction_questions.csv")
@@ -100,7 +100,5 @@ def count_correct_human_answers(user: UserProfile) -> int:
 
     """
     true_answers = get_true_answers("prediction_questions.csv")
-
     correct_answers = [user.human_predictions[i] == true_answers[i] for i in range(1, 21)].count(True)
-
     return correct_answers

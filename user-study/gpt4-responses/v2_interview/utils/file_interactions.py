@@ -2,21 +2,61 @@
 import pandas as pd
 import random
 
-# ------------------------------------------------ FILE NAMES ----------------------------------------
+# ------------------------------------------------ FILE NAMES AND PATHS ----------------------------------------
 
-RESULT_FILES = {
-    1 : "out/simulated_interview_results_1.csv",
-    2 : "out/simulated_interview_results_2.csv",
-    3 : "out/simulated_interview_results_3.csv",
-    4 : "out/simulated_interview_results_4.csv"
+BIRD_PREFIXES = {
+    1 : "out/v1_profile_no_reason/",
+    2 : "out/v2_no_profile_no_reason/",
+    3 : "out/v3_profile_reason/",
+    4 : "out/v4_no_profile_reason/",
+    5 : "out/v5_profile_heatmap/",
+    6 : "out/v6_no_profile_heatmap/"
 }
 
-PROTOCOL_FILES = {
-    1 : "out/interview_protocol_1.txt",
-    2 : "out/interview_protocol_2.txt",
-    3 : "out/interview_protocol_3.txt",
-    4 : "out/interview_protocol_4.txt"
+AGREEMENT_PREFIXES = {
+    # boolean: with accuracy
+    True : "out/agreement/with_accuracy_",
+    False : "out/agreement/without_accuracy_"
 }
+
+FILE_SUFFIXES = {
+    "protocol" : "protocol.txt",
+    "results" : "results.csv"
+}
+
+def bird_output_path(variation: int, out_type:str="protocol") -> str:
+    """Returns path to output file.
+    
+    Args:
+        variation (int) : prompt variation
+        type (str) : protocol file vs result file
+    
+    Returns:
+        (str) : file path
+    """
+    output_types = ["protocol", "results"] 
+    if type not in output_types: 
+        raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
+
+    return BIRD_PREFIXES[variation] + FILE_SUFFIXES[out_type]
+
+
+def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
+    """Returns path to output file.
+    
+    Args:
+        with_accuracy (bool) : whether accuracy was used in prompt
+        type (str) : protocol file vs result file
+    
+    Returns:
+        (str) : file path
+    """
+    output_types = ["protocol", "results"] 
+    if type not in output_types: 
+        raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
+
+    return AGREEMENT_PREFIXES[with_accuracy] + FILE_SUFFIXES[out_type]
+
 
 # ----------------------------------------------- During interview ---------------------------------------------------------------
 
@@ -24,10 +64,10 @@ def check_answer_exists():
     pass
 
 
-def save_result_df(df:pd.DataFrame, variation:int):
+def save_result_df(df:pd.DataFrame, result_path: str):
     df.sort_values(by=['id'], inplace=True)
     df.reset_index()
-    df.to_csv(RESULT_FILES[variation], na_rep='NA')
+    df.to_csv(result_path, na_rep='NA')
     
 
 # ------------------------------------------------ Before Interview ---------------------------------------------------------------
