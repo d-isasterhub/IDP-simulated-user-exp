@@ -94,7 +94,7 @@ def initialize_parser():
 
 
 def LLM_prediction_heatmap_first(user:UserProfile, image_path: str, profiling: bool, heatmap_description: str, question: str) -> str:
-    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+    """Main part of the interview simulation, heatmap first: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
@@ -111,7 +111,7 @@ def LLM_prediction_heatmap_first(user:UserProfile, image_path: str, profiling: b
             max_tokens = 400,
             messages = 
                 (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
-                get_msg_with_image(role="user", prompt=USER_PROMPTS[(4, "intro")]+USER_PROMPTS[(4, "heatmap")], image=image_path) +\
+                get_msg_with_image(role="user", prompt=USER_PROMPTS[(ReasoningOption.HEATMAP_FIRST, "intro")]+USER_PROMPTS[(ReasoningOption.HEATMAP_FIRST, "heatmap")], image=image_path) +\
                 get_msg(role="assistant", prompt=heatmap_description) +\
                 get_msg(role="user", prompt=question) 
         )
@@ -144,7 +144,7 @@ def LLM_prediction_profile_first(user: UserProfile, image_path: str, profiling: 
 
 
 def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_prompt: str, question_prompt: str) -> str:
-    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+    """Main part of the interview simulation: profiles a user, gives an agreement question as an example and finally asks an agreement question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
@@ -234,7 +234,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
     if reasoning == 'heatmap_first':
-        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(4, "profiling")])) + USER_PROMPTS[(4, "question")] + " " + TOKENS_LOW
+        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     else:
         QUESTION = USER_PROMPTS[(reasoning, "intro")] + ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
     # print(QUESTION)
@@ -245,8 +245,8 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         if profiling == 'full':
             f.write(user.profiling_prompt)
         if reasoning == ReasoningOption.HEATMAP_FIRST:
-            f.write(USER_PROMPTS[(4, "intro")])
-            f.write(USER_PROMPTS[(4, "heatmap")])
+            f.write(USER_PROMPTS[(reasoning, "intro")])
+            f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
             f.write(heatmap_description)
             f.write("\n")
@@ -289,7 +289,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (bool) : whether to use profiling
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
     """
     # find (previous) results    
     results_df = pd.read_csv(agree_output_path(with_accuracy, "results"), index_col = "id", keep_default_na=False)
@@ -332,7 +332,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (bool) : whether to use profiling
             reasoning (ReasoningOption) : prompting variant, i.e. whether to ask for reasoning and if so, whether to ask for heatmap descriptions first
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
     """
     # find (previous) results
     out_path = bird_output_path(reasoning, profiling, "results")    
