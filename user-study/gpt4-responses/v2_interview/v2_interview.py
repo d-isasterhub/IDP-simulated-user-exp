@@ -90,7 +90,7 @@ def initialize_parser():
     return parser
 
 
-def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, heatmap_description: str, question: str) -> str:
+def LLM_prediction_heatmap_first(user:UserProfile, image_path: str, profiling_level: str, heatmap_description: str, question: str) -> str:
     """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
     
         Args:
@@ -117,7 +117,7 @@ def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, he
     return actual_response
 
 
-def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str, question: str) -> str:
+def LLM_prediction_profile_first(user: UserProfile, image_path: str, profiling_level: str, question: str) -> str:
     """Main part of the interview simulation, variants 1/2/3: profiles a user and then asks a user study question.
     
         Args:
@@ -250,10 +250,10 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write(QUESTION)
         f.write("\n")
 
-        if variation == 4:
-            llm_response = LLM_prediction_4(user, image_path, profiling_level, heatmap_description, QUESTION)
+        if variation > 4:
+            llm_response = LLM_prediction_heatmap_first(user, image_path, profiling_level, heatmap_description, QUESTION)
         else:
-            llm_response = LLM_prediction_123(user, image_path, profiling_level, QUESTION)
+            llm_response = LLM_prediction_profile_first(user, image_path, profiling_level, QUESTION)
         
         reasoning, answer = process_llm_output(llm_response)
         
