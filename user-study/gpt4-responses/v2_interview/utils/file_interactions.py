@@ -36,7 +36,7 @@ def bird_output_path(reasoning:ReasoningOption, profiling:bool, out_type:str="pr
         (str) : file path
     """
     output_types = ["protocol", "results"] 
-    if type not in output_types: 
+    if out_type not in output_types: 
         raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
     
     return REASON_OPTIONS[reasoning] + ("profile/" if profiling else "no_profile/") + FILE_SUFFIXES[out_type] 
@@ -53,7 +53,7 @@ def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
         (str) : file path
     """
     output_types = ["protocol", "results"] 
-    if type not in output_types: 
+    if out_type not in output_types: 
         raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
 
     return AGREEMENT_PREFIXES[with_accuracy] + FILE_SUFFIXES[out_type]
