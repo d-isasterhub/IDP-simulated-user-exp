@@ -2,15 +2,16 @@
 import pandas as pd
 import random
 
+from .prompts import (
+    ReasoningOption
+)
+
 # ------------------------------------------------ FILE NAMES AND PATHS ----------------------------------------
 
-BIRD_PREFIXES = {
-    1 : "out/v1_profile_no_reason/",
-    2 : "out/v2_no_profile_no_reason/",
-    3 : "out/v3_profile_reason/",
-    4 : "out/v4_no_profile_reason/",
-    5 : "out/v5_profile_heatmap/",
-    6 : "out/v6_no_profile_heatmap/"
+REASON_OPTIONS = {
+    ReasoningOption.NONE : "out/no_reason/",
+    ReasoningOption.HEATMAP_FIRST : "out/reason_heatmap_first/",
+    ReasoningOption.PROFILE_FIRST : "out/reason_profile_first/",
 }
 
 AGREEMENT_PREFIXES = {
@@ -24,11 +25,11 @@ FILE_SUFFIXES = {
     "results" : "results.csv"
 }
 
-def bird_output_path(variation: int, out_type:str="protocol") -> str:
+def bird_output_path(reasoning:ReasoningOption, profiling:bool, out_type:str="protocol") -> str:
     """Returns path to output file.
     
     Args:
-        variation (int) : prompt variation
+        reasoning (ReasoningOption) : prompt variation
         type (str) : protocol file vs result file
     
     Returns:
@@ -37,8 +38,8 @@ def bird_output_path(variation: int, out_type:str="protocol") -> str:
     output_types = ["protocol", "results"] 
     if type not in output_types: 
         raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
-
-    return BIRD_PREFIXES[variation] + FILE_SUFFIXES[out_type]
+    
+    return REASON_OPTIONS[reasoning] + ("profile/" if profiling else "no_profile/") + FILE_SUFFIXES[out_type] 
 
 
 def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
