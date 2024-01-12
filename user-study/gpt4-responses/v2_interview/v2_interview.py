@@ -292,7 +292,8 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
     """
     # find (previous) results    
-    results_df = pd.read_csv(agree_output_path(with_accuracy, "results"), index_col = "id", keep_default_na=False)
+    out_path = agree_output_path(with_accuracy, "results")
+    results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
 
@@ -319,6 +320,8 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
                     # TODO: this does not work
                     print("Response generation failed:\n")
                     print(e)
+
+        save_result_df(results_df, out_path)
 
     # saving the result dataframe again
     save_result_df(results_df, agree_output_path(with_accuracy, "results"))
@@ -365,6 +368,8 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
                     # TODO: this does not work
                     print("Response generation failed:\n")
                     print(e)
+
+        save_result_df(results_df, out_path)
 
     # saving the result dataframe again
     save_result_df(results_df, out_path)
