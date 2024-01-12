@@ -233,11 +233,11 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
-    if reasoning == 'heatmap_first':
+    if reasoning == ReasoningOption.HEATMAP_FIRST:
         QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     else:
         QUESTION = USER_PROMPTS[(reasoning, "intro")] + ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
-    # print(QUESTION)
+    print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
@@ -418,7 +418,7 @@ def main():
 
         reasoning = ReasoningOption[args.reasoning.upper()]
 
-        if not args.heatmap_first:
+        if reasoning != ReasoningOption.HEATMAP_FIRST:
             simulate_interviews(question_paths, profiles, args.profiling, reasoning)
         else:
             generate_heatmap_descriptions(question_IDs)
