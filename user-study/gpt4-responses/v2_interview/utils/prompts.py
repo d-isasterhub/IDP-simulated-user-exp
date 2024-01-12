@@ -221,23 +221,28 @@ USER_AGREEMENT_ANSWER = "Answer with the number only."
 #     "3) Answer with your chosen bird species only using one of the following four options: "\
 #     "Crested Auklet, Least Auklet, Parakeet Auklet, Rhinoceros Auklet"
 
-# ================================================= DICT ==========================
+# ================================================= PROMPT DATA STRUCTURES ==========================
 
+from enum import Enum
+
+class ReasoningOption(Enum):
+    """Enum for reasoning options"""
+    NONE = "none"
+    PROFILE_FIRST = "profile_first"
+    HEATMAP_FIRST = "heatmap_first"
 
 USER_PROMPTS = {
-    (1, "intro") : USER_INTRO_1,
-    (1, "profiling") : USER_PROFILING_1,
-    (1, "question") : USER_QUESTION_1,
-    (2, "intro") : USER_INTRO_2,
-    (2, "profiling") : USER_PROFILING_2,
-    (2, "question") : USER_QUESTION_2,
-    (3, "intro") : USER_INTRO_3,
-    (3, "profiling") : USER_PROFILING_3,
-    (3, "question") : USER_QUESTION_3,
-    (4, "intro") : USER_INTRO_4,
-    (4, "profiling") : USER_PROFILING_4,
-    (4, "question") : USER_QUESTION_4,
-    (4, "heatmap") : USER_HEATMAP_4
+    # tuple: reasoning, prompting part
+    (ReasoningOption.NONE, "intro") : USER_INTRO_1,
+    (ReasoningOption.NONE, "profiling") : USER_PROFILING_1,
+    (ReasoningOption.NONE, "question") : USER_QUESTION_1,
+    (ReasoningOption.PROFILE_FIRST, "intro") : USER_INTRO_3,
+    (ReasoningOption.PROFILE_FIRST, "profiling") : USER_PROFILING_3,
+    (ReasoningOption.PROFILE_FIRST, "question") : USER_QUESTION_3,
+    (ReasoningOption.HEATMAP_FIRST, "intro") : USER_INTRO_4,
+    (ReasoningOption.HEATMAP_FIRST, "profiling") : USER_PROFILING_4,
+    (ReasoningOption.HEATMAP_FIRST, "question") : USER_QUESTION_4,
+    (ReasoningOption.HEATMAP_FIRST, "heatmap") : USER_HEATMAP_4
 }
 
 AGREEMENT_PROMPTS = {
