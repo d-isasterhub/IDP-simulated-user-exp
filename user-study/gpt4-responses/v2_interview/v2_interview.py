@@ -240,7 +240,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
-    with open(bird_output_path(reasoning, "protocol"), mode="a+") as f:
+    with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling == 'full':
             f.write(user.profiling_prompt)
