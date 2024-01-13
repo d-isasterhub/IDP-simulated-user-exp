@@ -48,10 +48,11 @@ get_truth_dt <- function() {
 ```
 
 
-#### Get modified data tables 
+#### Get modified data tables (Classification)
 
 get_tidy_dt: Takes questions (e.g., `c("Q1", "Q2")`) and the data tables from
-`get_human_dt` and `get_llm_dt`. Creates a tidy data table in the form of
+`get_human_dt` and `get_llm_dt`. Use only for Classification questions. Creates 
+a tidy data table in the form of
 
 id | User  | Question | Prediction
 ---|-------|----------|---------------
@@ -86,7 +87,7 @@ Q10      | 0.82  | 0.32
 ...      | ...   | ...
 
 
-```{r Tidy Data Table}
+```{r Tidy Data Table Classification}
 get_tidy_dt <- function(questions, dt_h, dt_llm) {
   # Get human data table: id | Human_Qi | ... | Human_Qj
   human_cols <- paste0("Human_", questions)
@@ -132,13 +133,24 @@ get_accuracy_dt <- function(questions, dt_h, dt_llm, correct){
        User, Accuracy
      ) %>% as.data.table()
 }
+
+get_agreement_dt <- function(questions, dt_h, dt_llm) {
+  human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+  human_agreement_dt <- dt_h[, mget(c("id", human_agreement))]
+  agreement <- paste0("A", 2:6)
+  colnames(human_agreement_dt) <- c("id", agreement)
+  
+  tidy <- get_tidy_dt(questions, human_agreement_dt, dt_llm) %>% dcast(... ~ User)
+  tidy[, diff := Human - LLM]
+  return(tidy)
+}
 ```
 
 
 #### Plotting
 
 These plots are meant to visualize the results of `get_human_resemblance_dt` 
-and `get_accuracy_dt`.
+and `get_accuracy_dt`, as well as `get_agreement_dt`.
 
 ```{r Plotting}
 get_human_resemblance_plot <- function(accuracy_dt, questions, title) {
@@ -184,6 +196,13 @@ get_accuracy_plot <- function(accuracy_dt, questions, title) {
   print(p)
   complete_dt
 }
+
+get_agreement_plot <- function(dt, title) {
+  dt %>% ggplot(aes(Human, LLM)) +
+    geom_point() +
+    geom_jitter() +
+    ggtitle(title)
+}
 ```
 
 
@@ -191,7 +210,9 @@ get_accuracy_plot <- function(accuracy_dt, questions, title) {
 
 #### Settings
 
-```{r Settings}
+Please adjust the settings here as needed for the desired plot.
+
+```{r Settings Classification}
 ###############################################################################
 # Change settings HERE
 # Options: no_reason, reason_heatmap_first, reason_profile_first
@@ -269,3 +290,72 @@ title <- paste(
 )
 get_accuracy_plot(accuracy_dt, questions, title)
 ```
+
+
+## Visualization of classification answer simulation results
+
+#### Settings
+
+```{r Agreement}
+###############################################################################
+# Change settings HERE
+# Options: with, without
+accuracy <- "with"
+# Agreement questions to be visualized
+questions <- paste0("A", c("2", "3", "4", "5", "6"))
+##############################################################################
+
+path <- paste(
+  "../gpt4-responses/v2_interview/out/agreement/",
+  accuracy,
+  "_accuracy_results.csv",
+  sep = ''
+)
+```
+
+#### Data Tables
+
+```{r Data Agreement Plot}
+human_dt <- get_human_dt()
+llm_dt <- get_llm_dt(path)
+agreement_dt <- get_agreement_dt(questions, human_dt, llm_dt)
+```
+
+#### Human resemblance
+
+```{r Data Agreement Plot}
+agreement_questions <- paste(
+  questions,
+  collapse = ", "
+)
+
+prompting <- paste(
+  "Prompt",
+  accuracy,
+  "accuracy of classification guesses."
+)
+
+correlation <- paste(
+  "Spearman correlation:",
+  as.character(
+    round(cor(agreement_dt$Human, agreement_dt$LLM, method = "spearman"), 2)
+  )
+)
+
+main <- paste(
+  "How Similar Are Human and LLM Agreement Scores for questions ",
+  agreement_questions,
+  "?",
+  sep = ""
+)
+
+title <- paste(
+  main,
+  prompting,
+  correlation,
+  sep = "\n"
+)
+
+get_agreement_plot(agreement_dt, title)
+```
+
