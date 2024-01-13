@@ -38,7 +38,9 @@ from utils.prompts import (
     TOKENS_LOW,
     AGREEMENT_PROMPTS,
     AGREEMENT_QUESTIONS,
-    ReasoningOption
+    ReasoningOption,
+    USER_QUESTION_NODESC,
+    USER_INSTRUCTS
 )
 
 from utils.answer_processing import (
@@ -241,10 +243,13 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
     if reasoning == ReasoningOption.HEATMAP_FIRST:
-        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
+        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + \
+            USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     else:
-        QUESTION = USER_PROMPTS[(reasoning, "intro")] + ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
-    print(QUESTION)
+        QUESTION = USER_PROMPTS[(reasoning, "intro")] + \
+            ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + \
+            (USER_PROMPTS[(reasoning, "question")] if profiling else USER_QUESTION_NODESC + USER_INSTRUCTS[reasoning])
+    # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
@@ -355,7 +360,10 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
     # simulate interview for each user and question
     for user in profiles:
 
-        user_id = user.user_background['id']
+        if profiling:
+            user_id = user.user_background['id']
+        else:
+            user_id = results_df.shape[0]
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
