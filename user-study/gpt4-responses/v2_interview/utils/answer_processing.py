@@ -59,10 +59,10 @@ def extract_answer(answer:str, questionnaire:str='birds') -> str:
     matches = {option.value for option in answer_enum if option.value.lower() in answer.lower()}
 
     if len(matches) == 0:
-        warnings.warn("No valid answer option found in last line of LLM response. Proceeding with empty answer.")
+        warnings.warn("No valid answer option found in last line of LLM response. Proceeding with empty answer. (LLM response: " + answer + ")")
         return ""
     elif len(matches) > 1:
-        warnings.warn("More than one valid answer option found in last line of LLM reponse. Proceeding with empty answer.")
+        warnings.warn("More than one valid answer option found in last line of LLM reponse. Proceeding with empty answer. (LLM response: " + answer + ")")
         return ""
     else:
         return list(matches)[0]
