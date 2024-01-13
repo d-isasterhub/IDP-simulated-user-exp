@@ -1,0 +1,271 @@
+---
+title: "simulation-analysis"
+author: "Isabel Schorr"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r libraries, include = FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+
+## Utility Functions
+
+#### Read csv files
+
+These functions read and adapt the existing csv files for human answers,
+LLM answers, and the ground truth for classification answers.
+
+```{r Data Table}
+get_human_dt <- function() {
+  human_dt <- fread(
+    "../data-exploration-cleanup/cleaned_simulatedusers.csv",
+  )[,-1]
+  human_dt[, id := 0:(nrow(human_dt)-1)]
+  
+  return(human_dt)
+}
+
+get_llm_dt <-function(path) {
+  llm_dt <- fread(path)
+  
+  return(llm_dt)
+}
+
+get_truth_dt <- function() {
+  truth_dt <- fread("../gpt4-responses/v2_interview/prediction_questions.csv") %>%
+    .[, Question := paste0("Q", ID)] %>%
+    .[, mget(c("Question", "correct_answer"))]
+  colnames(truth_dt) <- c("Question", "CorrectAnswer")
+  
+  return(truth_dt)
+}
+```
+
+
+#### Get modified data tables 
+
+get_tidy_dt: Takes questions (e.g., `c("Q1", "Q2")`) and the data tables from
+`get_human_dt` and `get_llm_dt`. Creates a tidy data table in the form of
+
+id | User  | Question | Prediction
+---|-------|----------|---------------
+0  | Human | Q1       | Crested Auklet
+1  | Human | Q1       | Crested Auklet
+...| ...   | ...      | ...
+0  | LLM   | Q1       | Crested Auklet
+...| ...   | ...      | ...
+
+
+get_human_resemblance_dt: Takes questions (e.g., `c("Q1", "Q2")`) and the 
+data tables from `get_human_dt` and `get_llm_dt`. Calculates how often the LLM 
+responded with the same classification guess as its human counterpart. Creates 
+a data table in the form of
+
+Question | Accuracy
+---------|---------
+Q1       | 0.90
+Q10      | 0.34
+...      | ...
+
+
+get_accuracy_dt: Takes questions (e.g., `c("Q1", "Q2")`), the data tables from
+`get_human_dt` and `get_llm_dt`, and the data table from `get_truth_dt`.
+Calculates how accurate both human and llm were in terms of the correct 
+classification answer. Creates a data table in the form of
+
+Question | Human | LLM
+---------|-------|-----
+Q1       | 0.90  | 1.00
+Q10      | 0.82  | 0.32
+...      | ...   | ...
+
+
+```{r Tidy Data Table}
+get_tidy_dt <- function(questions, dt_h, dt_llm) {
+  # Get human data table: id | Human_Qi | ... | Human_Qj
+  human_cols <- paste0("Human_", questions)
+  dt_h <- dt_h %>% rename_at(questions, ~ human_cols) %>%
+    .[, mget(c("id", human_cols))]
+  
+  # Get LLM data table: id | LLM_Qi | ... | LLM_Qj
+  llm_cols <- paste0("LLM_", questions)
+  dt_llm <- dt_llm[,mget(c("id", llm_cols))]
+  
+  # Merge data tables: id | User | Question | Prediction
+  # Example: 0 | Human | Q1 | Crested Auklet
+  dt <- merge(dt_h, dt_llm, by = "id")
+  dt %>% melt(
+    id.vars = "id",
+    variable.name = "Question",
+    "value.name" = "Prediction"
+  ) %>% separate(
+    col = "Question",
+    into = c("User", "Question"),
+    remove = TRUE
+  ) %>% as.data.table()
+}
+
+get_human_resemblance_dt <- function(questions, dt_h, dt_llm){
+  dt <- get_tidy_dt(questions, dt_h, dt_llm) %>% spread(
+    User, Prediction
+  ) %>% as.data.table() 
+  dt[, Correct := 1*(Human == LLM)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("Question")]
+}
+
+get_accuracy_dt <- function(questions, dt_h, dt_llm, correct){
+  dt <- merge(
+    get_tidy_dt(questions, dt_h, dt_llm),
+    correct,
+    by = "Question"
+  ) %>% as.data.table()
+  dt[, Correct := 1*(Prediction == CorrectAnswer)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("User", "Question")] %>% spread(
+       User, Accuracy
+     ) %>% as.data.table()
+}
+```
+
+
+#### Plotting
+
+These plots are meant to visualize the results of `get_human_resemblance_dt` 
+and `get_accuracy_dt`.
+
+```{r Plotting}
+get_human_resemblance_plot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Accuracy = sum(Accuracy)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy)) +
+    geom_col() +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title) +
+    ylim(0,1)
+  print(p)
+  complete_dt
+}
+
+get_accuracy_plot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Human = sum(Human)/.N, LLM = sum(LLM)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    melt(
+      id.vars = NULL,
+      variable.name = "User",
+      value.name = "Accuracy"
+    ) %>% 
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy, fill=User)) +
+    geom_col(position="dodge") +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title)
+  print(p)
+  complete_dt
+}
+```
+
+
+## Visualization of classification answer simulation results
+
+#### Settings
+
+```{r Settings}
+###############################################################################
+# Change settings HERE
+# Options: no_reason, reason_heatmap_first, reason_profile_first
+reasoning <- "no_reason"
+# Options: no_profile, profile
+profiling <- "profile"
+# Classification questions to be visualized
+questions <- paste0("Q", 1:20)
+##############################################################################
+
+path <- paste(
+  "../gpt4-responses/v2_interview/out/",
+  reasoning,
+  "/",
+  profiling,
+  "/results.csv",
+  sep = ''
+)
+```
+
+
+#### Data tables
+
+```{r Data tables for plotting}
+human_dt <- get_human_dt()
+llm_dt <- get_llm_dt(path)
+truth_dt <- get_truth_dt()
+
+resemblance_dt <- get_human_resemblance_dt(questions, human_dt, llm_dt)
+accuracy_dt <- get_accuracy_dt(questions, human_dt, llm_dt, truth_dt)
+```
+
+
+#### Human resemblance
+
+```{r Plotting Human 100%}
+reason <- paste(
+  "Reasoning:",
+  reasoning
+)
+
+profile <- paste(
+  "Profiling:",
+  profiling
+)
+
+title <- paste(
+  "How Accurately Do LLM Answers Resemble Human Answers?",
+  reason,
+  profile,
+  sep = "\n"
+)
+get_human_resemblance_plot(resemblance_dt, questions, title)
+```
+
+
+#### Accuracy
+
+```{r Plotting Human 100%}
+reason <- paste(
+  "Reasoning:",
+  reasoning
+)
+
+profile <- paste(
+  "Profiling:",
+  profiling
+)
+
+title <- paste(
+  "How Accurate Do LLMs and Humans Guess the Classification?",
+  reason,
+  profile,
+  sep = "\n"
+)
+get_accuracy_plot(accuracy_dt, questions, title)
+```

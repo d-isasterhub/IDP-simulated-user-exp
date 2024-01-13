@@ -24,7 +24,7 @@ library(dplyr)
 ```
 
 ```{r sim version}
-version <- 4
+version <- 1
 ```
 
 ## Visualization: Descriptive Plots
