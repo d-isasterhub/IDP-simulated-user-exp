@@ -24,7 +24,7 @@ library(dplyr)
 ```
 
 ```{r sim version}
-version <- 1
+version <- 4
 ```
 
 ## Visualization: Descriptive Plots
@@ -226,6 +226,18 @@ tidy %>% ggplot(aes(Human, LLM)) +
   geom_point() +
   geom_jitter(                                                                           )
 print(cor(tidy$Human, tidy$LLM, method = "pearson"))
+```
+
+```{r Sort results}
+version <- 1
+llm_agreement_dt <- fread(
+  paste("../gpt4-responses/v2_interview/out/simulated_interview_results_",
+        as.character(version),
+        ".csv", sep = "")
+)
+agreement_cols <- paste0("LLM_A", 1:6)
+res <- llm_agreement_dt[, mget(c("id", agreement_cols))]
+fwrite(res, "../gpt4-responses/v2_interview/out/agreement/...")
 ```
 
 ## Data Tables (outdated)
