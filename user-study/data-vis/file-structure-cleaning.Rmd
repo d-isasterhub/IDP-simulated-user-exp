@@ -1,0 +1,69 @@
+---
+title: "file-structure-cleaning"
+author: "Isabel Schorr"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r libraries, include = FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+## Cleaning files
+
+The following bits of code were used to clean up the old file system and fill
+the new one with the already simulated answers.
+
+Function for moving the results stored in csv files:
+
+```{r Update files}
+update_file <- function(version, columns, out) {
+  llm_dt <- fread(
+    paste("../gpt4-responses/v2_interview/out/simulated_interview_results_",
+          as.character(version),
+          ".csv", sep = "")
+  )
+  res <- llm_dt[, mget(c("id", columns))]
+  fwrite(res, out, na = "NA")
+  res
+}
+```
+
+Moving agreement answers with accuracy:
+
+```{r Agreement with accuracy}
+cols <- paste0("LLM_A", 1:6)
+out <- "../gpt4-responses/v2_interview/out/agreement/with_accuracy_results.csv"
+update_file(1, cols, out)
+```
+
+Moving classification answers with profiling but no reasoning:
+
+```{r Agreement with accuracy}
+cols <- paste0("LLM_Q", 1:20)
+out <- "../gpt4-responses/v2_interview/out/no_reason/profile/results.csv"
+update_file(1, cols, out)
+```
+
+Moving classification answers with profiling and reasoning, where we ask GPT-4 
+to describe the heatmap first:
+
+```{r Agreement with accuracy}
+cols <- paste0("LLM_Q", 1:20)
+out <- "../gpt4-responses/v2_interview/out/reason_heatmap_first/profile/results.csv"
+update_file(4, cols, out)
+```
+
+Moving classification answers with profiling and reasoning, where we give the
+profiling before the heatmap:
+
+```{r Agreement with accuracy}
+cols <- paste0("LLM_Q", 1:20)
+out <- "../gpt4-responses/v2_interview/out/reason_profile_first/profile/results.csv"
+update_file(3, cols, out)
+```
+
