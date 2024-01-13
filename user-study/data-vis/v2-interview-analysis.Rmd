@@ -24,7 +24,7 @@ library(dplyr)
 ```
 
 ```{r sim version}
-version <- 4
+version <- 1
 ```
 
 ## Visualization: Descriptive Plots
@@ -200,7 +200,7 @@ title <- "Guessing the classification for all birds correctly"
 getAccuracyPlot(acc_dt, questions, title)
 ```
 
-## Temporary Agreement Analysis
+## Agreement Analysis
 
 ```{r Data Agreement Plot}
 human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
