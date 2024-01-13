@@ -360,7 +360,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    if reasoning=='heatmap_first':
+                    if reasoning==ReasoningOption.HEATMAP_FIRST:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index])
                     else:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning)
