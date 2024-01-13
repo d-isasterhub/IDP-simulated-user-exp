@@ -2,21 +2,62 @@
 import pandas as pd
 import random
 
-# ------------------------------------------------ FILE NAMES ----------------------------------------
+from .prompts import (
+    ReasoningOption
+)
 
-RESULT_FILES = {
-    1 : "out/simulated_interview_results_1.csv",
-    2 : "out/simulated_interview_results_2.csv",
-    3 : "out/simulated_interview_results_3.csv",
-    4 : "out/simulated_interview_results_4.csv"
+# ------------------------------------------------ FILE NAMES AND PATHS ----------------------------------------
+
+REASON_OPTIONS = {
+    ReasoningOption.NONE : "out/no_reason/",
+    ReasoningOption.HEATMAP_FIRST : "out/reason_heatmap_first/",
+    ReasoningOption.PROFILE_FIRST : "out/reason_profile_first/",
 }
 
-PROTOCOL_FILES = {
-    1 : "out/interview_protocol_1.txt",
-    2 : "out/interview_protocol_2.txt",
-    3 : "out/interview_protocol_3.txt",
-    4 : "out/interview_protocol_4.txt"
+AGREEMENT_PREFIXES = {
+    # boolean: with accuracy
+    True : "out/agreement/with_accuracy_",
+    False : "out/agreement/without_accuracy_"
 }
+
+FILE_SUFFIXES = {
+    "protocol" : "protocol.txt",
+    "results" : "results.csv"
+}
+
+def bird_output_path(reasoning:ReasoningOption, profiling:bool, out_type:str="protocol") -> str:
+    """Returns path to output file.
+    
+    Args:
+        reasoning (ReasoningOption) : prompt variation
+        type (str) : protocol file vs result file
+    
+    Returns:
+        (str) : file path
+    """
+    output_types = ["protocol", "results"] 
+    if out_type not in output_types: 
+        raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
+    
+    return REASON_OPTIONS[reasoning] + ("profile/" if profiling else "no_profile/") + FILE_SUFFIXES[out_type] 
+
+
+def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
+    """Returns path to output file.
+    
+    Args:
+        with_accuracy (bool) : whether accuracy was used in prompt
+        type (str) : protocol file vs result file
+    
+    Returns:
+        (str) : file path
+    """
+    output_types = ["protocol", "results"] 
+    if out_type not in output_types: 
+        raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
+
+    return AGREEMENT_PREFIXES[with_accuracy] + FILE_SUFFIXES[out_type]
+
 
 # ----------------------------------------------- During interview ---------------------------------------------------------------
 
@@ -24,10 +65,10 @@ def check_answer_exists():
     pass
 
 
-def save_result_df(df:pd.DataFrame, variation:int):
+def save_result_df(df:pd.DataFrame, result_path: str):
     df.sort_values(by=['id'], inplace=True)
     df.reset_index()
-    df.to_csv(RESULT_FILES[variation], na_rep='NA')
+    df.to_csv(result_path, na_rep='NA')
     
 
 # ------------------------------------------------ Before Interview ---------------------------------------------------------------

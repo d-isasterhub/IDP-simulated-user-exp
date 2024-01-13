@@ -21,8 +21,8 @@ from utils.file_interactions import (
     save_result_df,
     read_human_data,
     get_heatmap_descriptions,
-    RESULT_FILES,
-    PROTOCOL_FILES
+    bird_output_path,
+    agree_output_path
 )
 
 from utils.questionnaire import (
@@ -37,7 +37,8 @@ from utils.prompts import (
     USER_PROMPTS,
     TOKENS_LOW,
     AGREEMENT_PROMPTS,
-    AGREEMENT_QUESTIONS
+    AGREEMENT_QUESTIONS,
+    ReasoningOption
 )
 
 from utils.answer_processing import (
@@ -59,13 +60,15 @@ def initialize_parser():
                                 help="number of users to simulate (default: %(default)s)")
     parser.add_argument('--select_users', default='random', type=str, choices=['random', 'first', 'last'], 
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
-                                help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--variation', default=1, type=int, choices=[1, 2, 3, 4],
-                                help="what variation of prompting to use (default: %(default)s, choices: %(choices)s)")
+    #parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
+    #                            help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
+    parser.add_argument('--profiling', default=True, type=bool, 
+                                help="whether to include profiling infor or not (default: True)")
+    parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first'],
+                                help="whether and how to ask LLM for reasoning (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
-
+    
     auto_parser = subparsers.add_parser('auto', help='automatic selection of questions. can be given the following args:\n'\
                                         '\t--number_questions\tnumber of questions to select (default: 20)\n'\
                                         '\t--select_questions\thow to select questions (default: \'balanced\', choices: \'random\', \'balanced\', \'first\')')
@@ -80,7 +83,7 @@ def initialize_parser():
                                 help="id(s) of questions to simulate")
 
     agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
-    agreement_parser.add_argument('--questions', type=int, nargs='+',# choices=range(1, 7), 
+    agreement_parser.add_argument('--questions', default=[2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
@@ -90,13 +93,13 @@ def initialize_parser():
     return parser
 
 
-def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, heatmap_description: str, question: str) -> str:
-    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+def LLM_prediction_heatmap_first(user:UserProfile, image_path: str, profiling: bool, heatmap_description: str, question: str) -> str:
+    """Main part of the interview simulation, heatmap first: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
             image_path (str) : path to the image corresponding to the question
-            profiling_level (str) : level of profiling to give
+            profiling (bool) : whether to use profiling
             heatmap_description (str) : heatmap description associated with the question
             question (str) : adapted question prompt with necessary profiling info
         
@@ -107,8 +110,8 @@ def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, he
             model = "gpt-4-vision-preview",
             max_tokens = 400,
             messages = 
-                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
-                get_msg_with_image(role="user", prompt=USER_PROMPTS[(4, "intro")]+USER_PROMPTS[(4, "heatmap")], image=image_path) +\
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
+                get_msg_with_image(role="user", prompt=USER_PROMPTS[(ReasoningOption.HEATMAP_FIRST, "intro")]+USER_PROMPTS[(ReasoningOption.HEATMAP_FIRST, "heatmap")], image=image_path) +\
                 get_msg(role="assistant", prompt=heatmap_description) +\
                 get_msg(role="user", prompt=question) 
         )
@@ -117,13 +120,13 @@ def LLM_prediction_4(user:UserProfile, image_path: str, profiling_level: str, he
     return actual_response
 
 
-def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str, question: str) -> str:
+def LLM_prediction_profile_first(user: UserProfile, image_path: str, profiling: bool, question: str) -> str:
     """Main part of the interview simulation, variants 1/2/3: profiles a user and then asks a user study question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
             image_path (str) : path to the image corresponding to the question
-            profiling_level (str) : level of profiling to give
+            profiling (bool) : whether to use profiling
             question (str) : adapted question prompt with necessary profiling info
         
         Returns:
@@ -133,15 +136,15 @@ def LLM_prediction_123(user: UserProfile, image_path: str, profiling_level: str,
             model = "gpt-4-vision-preview",
             max_tokens = 400,
             messages = 
-                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
                 get_msg_with_image(role="user", prompt=question, image=image_path)
         )
     actual_response = response["choices"][0]["message"]["content"] # have a string
     return actual_response
 
 
-def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, example_prompt: str, question_prompt: str) -> str:
-    """Main part of the interview simulation, variant 4: gives LLM a pre-generated heatmap description, then profiles a user and finally asks a user study question.
+def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_prompt: str, question_prompt: str) -> str:
+    """Main part of the interview simulation: profiles a user, gives an agreement question as an example and finally asks an agreement question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
@@ -157,7 +160,7 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, examp
             model = "gpt-4-vision-preview",
             max_tokens = 400,
             messages = 
-                (get_msg(role="system", prompt=user.profiling_prompt) if profiling_level == 'full' else []) +\
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
                 get_msg(role="user", prompt=example_prompt) +\
                 get_msg(role="assistant", prompt=str(example_a)) +\
                 get_msg(role="user", prompt=question_prompt) 
@@ -167,7 +170,7 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling_level: str, examp
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling_level : str, with_accuracy: bool, number_correct: int) -> str:
+def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
@@ -178,7 +181,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
     """
     EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
         AGREEMENT_PROMPTS["previous"] +\
-        ("" if profiling_level == 'none' else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
+        ("" if not profiling else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
         ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
         AGREEMENT_PROMPTS["task"] +\
         AGREEMENT_PROMPTS["question"] +\
@@ -189,9 +192,9 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open("out/agreement_protocol.txt", mode="a+") as f:
+    with open(agree_output_path(with_accuracy, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
-        if profiling_level == 'full':
+        if profiling:
             f.write(user.profiling_prompt)
         f.write(EXAMPLE)
         f.write("\n")
@@ -200,7 +203,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         f.write(QUESTION)
         f.write("\n")
 
-        llm_response = LLM_agreement(user, example_a, profiling_level, EXAMPLE, QUESTION)
+        llm_response = LLM_agreement(user, example_a, profiling, EXAMPLE, QUESTION)
         
         answer = llm_response # no processing here (yet)
         
@@ -211,7 +214,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
     return answer
 
 
-def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling_level : str, variation : int, heatmap_description:str=None) -> str:
+def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling : bool, reasoning : ReasoningOption, heatmap_description:str=None) -> str:
     """Simulates an interview by first profiling a user and then asking a user study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
@@ -220,8 +223,9 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
             image_path (str) : path to the image corresponding to the question
             user_num (int) : number of user in a series of interviews
             q_num (int) : number of question in a series of interviews
-            profiling_level (str) : level of profiling to give
-            variation (int) : variation of prompts to use
+            profiling (bool) : whether to use profiling
+            reasoning (ReasoningOption) : variation of prompts to use
+            heatmap_description (str) : optional heatmap description for question
         
         Returns:
             (str) : simulated and cleaned question answer
@@ -229,20 +233,20 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
-    if variation == 4:
-        QUESTION = ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROMPTS[(4, "profiling")])) + USER_PROMPTS[(4, "question")] + " " + TOKENS_LOW
+    if reasoning == ReasoningOption.HEATMAP_FIRST:
+        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     else:
-        QUESTION = USER_PROMPTS[(variation, "intro")] + ("" if profiling_level == 'none' else user.personalize_prompt(USER_PROMPTS[(variation, "profiling")])) + USER_PROMPTS[(variation, "question")]
-    # print(QUESTION)
+        QUESTION = USER_PROMPTS[(reasoning, "intro")] + ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
+    print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
-    with open(PROTOCOL_FILES[variation], mode="a+") as f:
+    with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
-        if profiling_level == 'full':
+        if profiling == 'full':
             f.write(user.profiling_prompt)
-        if variation == 4:
-            f.write(USER_PROMPTS[(4, "intro")])
-            f.write(USER_PROMPTS[(4, "heatmap")])
+        if reasoning == ReasoningOption.HEATMAP_FIRST:
+            f.write(USER_PROMPTS[(reasoning, "intro")])
+            f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
             print(str(heatmap_description))
             f.write(heatmap_description)
@@ -251,10 +255,10 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write(QUESTION)
         f.write("\n")
 
-        if variation == 4:
-            llm_response = LLM_prediction_4(user, image_path, profiling_level, heatmap_description, QUESTION)
+        if reasoning == ReasoningOption.HEATMAP_FIRST:
+            llm_response = LLM_prediction_heatmap_first(user, image_path, profiling, heatmap_description, QUESTION)
         else:
-            llm_response = LLM_prediction_123(user, image_path, profiling_level, QUESTION)
+            llm_response = LLM_prediction_profile_first(user, image_path, profiling, QUESTION)
         
         reasoning, answer = process_llm_output(llm_response)
         
@@ -267,30 +271,30 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     return answer
 
 
-def profile_users(profiles:[UserProfile], profiling_level:str):
+def profile_users(profiles:[UserProfile], profiling:bool):
     """Personalizes system prompts for users at given profiling level. If profiling level is 'none', system prompt will be None.
     
         Args:
             profiles ([UserProfile]) : the users to profile
             profiling (str) : level of profiling to give
     """
-    if profiling_level == 'full':
+    if profiling:
         for p in profiles:
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level:str, variation:int, with_accuracy: bool, example_q: int):
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, example_q: int):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
-            profiling (str) : level of profiling to give
-            variation (int) : prompting variant
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+            profiling (bool) : whether to use profiling
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
     """
     # find (previous) results    
-    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    out_path = agree_output_path(with_accuracy, "results")
+    results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
 
@@ -312,28 +316,31 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling_level
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question] not in options:
                 try:
-                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling_level, with_accuracy, number_correct)
+                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling, with_accuracy, number_correct)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
                     print(e)
 
+        save_result_df(results_df, out_path)
+
     # saving the result dataframe again
-    save_result_df(results_df, variation)
+    save_result_df(results_df, agree_output_path(with_accuracy, "results"))
 
 
-def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling_level:str, variation:int, heatmap_descriptions:dict[int, str]=None):
+def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling:bool, reasoning:ReasoningOption, heatmap_descriptions:dict[int, str]=None):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
-            profiling (str) : level of profiling to give
-            variation (int) : prompting variant
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps (for prompt variation 4)
+            profiling (bool) : whether to use profiling
+            reasoning (ReasoningOption) : prompting variant, i.e. whether to ask for reasoning and if so, whether to ask for heatmap descriptions first
+            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
     """
-    # find (previous) results    
-    results_df = pd.read_csv(RESULT_FILES[variation], index_col = "id", keep_default_na=False)
+    # find (previous) results
+    out_path = bird_output_path(reasoning, profiling, "results")    
+    results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     #results_df['LLM_Q2'] = 'NA'
 
     birds = [bird.value.lower() for bird in Auklets]
@@ -354,17 +361,19 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    if variation==4:
-                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation, heatmap_descriptions[q_index-1]['heatmap_description'])
+                    if reasoning==ReasoningOption.HEATMAP_FIRST:
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index-1]['heatmap_description'])
                     else:
-                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling_level, variation)
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
                     print(e)
 
+        save_result_df(results_df, out_path)
+
     # saving the result dataframe again
-    save_result_df(results_df, variation)
+    save_result_df(results_df, out_path)
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
@@ -378,7 +387,7 @@ def main():
     
     # ----------------------------------------- profiling -----------------------------------------------
 
-    if args.profiling == 'none':
+    if not args.profiling:
         profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
     else:
         # find users
@@ -408,16 +417,18 @@ def main():
         print(os.getcwd())
         question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
 
-        if args.variation != 4:
-            simulate_interviews(question_paths, profiles, args.profiling, args.variation)
+        reasoning = ReasoningOption[args.reasoning.upper()]
+
+        if reasoning != ReasoningOption.HEATMAP_FIRST:
+            simulate_interviews(question_paths, profiles, args.profiling, reasoning)
         else:
             generate_heatmap_descriptions(question_IDs)
             heatmap_descriptions = get_heatmap_descriptions()
-            simulate_interviews(question_paths, profiles, args.profiling, args.variation, heatmap_descriptions)
+            simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:
 
-        simulate_agreements(args.questions, profiles, args.profiling, args.variation, args.accuracy, args.example)
+        simulate_agreements(args.questions, profiles, args.profiling, args.accuracy, args.example)
 
 
 if __name__ == '__main__':
