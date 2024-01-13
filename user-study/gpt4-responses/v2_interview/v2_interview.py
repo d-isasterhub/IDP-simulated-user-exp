@@ -87,9 +87,11 @@ def initialize_parser():
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
-    agreement_parser.add_argument('--accuracy', default=True, type=bool,
-                                  help="whether to include the number of correct questions in prompting")
-
+    accuracy_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    accuracy_parser.add_argument('--with_accuracy', dest='with_accuracy', action='store_true')
+    accuracy_parser.add_argument('--without_accuracy', dest='with_accuracy', action='store_false')
+    agreement_parser.set_defaults(with_accuracy=True)
+    
     return parser
 
 
@@ -427,8 +429,7 @@ def main():
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:
-
-        simulate_agreements(args.questions, profiles, args.profiling, args.accuracy, args.example)
+        simulate_agreements(args.questions, profiles, args.profiling, args.with_accuracy, args.example)
 
 
 if __name__ == '__main__':
