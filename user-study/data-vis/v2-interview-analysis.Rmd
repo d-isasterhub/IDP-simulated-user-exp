@@ -24,7 +24,7 @@ library(dplyr)
 ```
 
 ```{r sim version}
-version <- 3
+version <- 1
 ```
 
 ## Visualization: Descriptive Plots
@@ -123,7 +123,8 @@ getAccuracyPlot <- function(accuracy_dt, questions, title) {
     geom_text(aes(label=Accuracy),
               position=position_dodge(width=0.9), vjust=-0.25, size=2) +
     theme(axis.text.x = element_text(size = 8)) +
-    ggtitle(title)
+    ggtitle(title) +
+    ylim(0,1)
   print(p)
   complete_dt
 }
@@ -199,7 +200,7 @@ title <- "Guessing the classification for all birds correctly"
 getAccuracyPlot(acc_dt, questions, title)
 ```
 
-## Temporary Agreement Analysis
+## Agreement Analysis
 
 ```{r Data Agreement Plot}
 human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
@@ -209,13 +210,23 @@ colnames(human_agreement_dt) <- c("id", agreement)
 
 tidy <- getTidyDt(agreement, human_agreement_dt, llm_dt) %>% dcast(... ~ User)
 tidy[, diff := Human - LLM]
+tidy
 summary(tidy)
 tidy[, .(mean_diff = mean(diff, na.rm = T), sd_diff = sd(diff, na.rm = T))]
 
 agr_human_acc_dt <- getHumanAccuracyDt(agreement, human_agreement_dt, llm_dt)
 agr_human_acc_dt
+
+print(cor(tidy$Human, tidy$LLM, method = "spearman"))
 ```
 
+```{r Data Agreement Plot}
+tidy <- tidy[Question != "A4"]
+tidy %>% ggplot(aes(Human, LLM)) +
+  geom_point() +
+  geom_jitter(                                                                           )
+print(cor(tidy$Human, tidy$LLM, method = "pearson"))
+```
 
 ## Data Tables (outdated)
 

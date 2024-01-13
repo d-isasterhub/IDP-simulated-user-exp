@@ -248,6 +248,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
             f.write(USER_PROMPTS[(reasoning, "intro")])
             f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
+            print(str(heatmap_description))
             f.write(heatmap_description)
             f.write("\n")
         f.write("\n")
@@ -361,7 +362,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             if results_df.at[user_id, question].lower() not in birds:
                 try:
                     if reasoning==ReasoningOption.HEATMAP_FIRST:
-                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index])
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index-1]['heatmap_description'])
                     else:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning)
                 except Exception as e:
@@ -431,4 +432,5 @@ def main():
 
 
 if __name__ == '__main__':
+    # generate_heatmap_descriptions(list(range(1,21)))
     sys.exit(main())
