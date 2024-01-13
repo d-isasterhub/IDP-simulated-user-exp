@@ -64,6 +64,11 @@ def initialize_parser():
     #                            help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
     parser.add_argument('--profiling', default=True, type=bool, 
                                 help="whether to include profiling infor or not (default: True)")
+    profiling_parser = parser.add_mutually_exclusive_group(required=False)
+    profiling_parser.add_argument('--with_profiling', dest='profiling', action='store_true')
+    profiling_parser.add_argument('--without_profiling', dest='profiling', action='store_false')
+    parser.set_defaults(profiling=True)
+    
     parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first'],
                                 help="whether and how to ask LLM for reasoning (default: %(default)s, choices: %(choices)s)")
     
