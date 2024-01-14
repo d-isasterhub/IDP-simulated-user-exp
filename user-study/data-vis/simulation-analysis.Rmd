@@ -197,10 +197,17 @@ get_accuracy_plot <- function(accuracy_dt, questions, title) {
   complete_dt
 }
 
-get_agreement_plot <- function(dt, title) {
+get_agreement_scatterplot <- function(dt, title) {
   dt %>% ggplot(aes(Human, LLM)) +
     geom_point() +
     geom_jitter() +
+    ggtitle(title)
+}
+
+get_barplot <- function(dt, column, title) {
+  dt %>% ggplot(aes(as.factor(get(column)))) +
+    geom_bar() +
+    xlab(column) +
     ggtitle(title)
 }
 ```
@@ -236,7 +243,7 @@ path <- paste(
 
 #### Data tables
 
-```{r Data tables for plotting}
+```{r Data Tables for Plotting}
 human_dt <- get_human_dt()
 llm_dt <- get_llm_dt(path)
 truth_dt <- get_truth_dt()
@@ -248,7 +255,7 @@ accuracy_dt <- get_accuracy_dt(questions, human_dt, llm_dt, truth_dt)
 
 #### Human resemblance
 
-```{r Plotting Human 100%}
+```{r Classification Resemblance Plot}
 reason <- paste(
   "Reasoning:",
   reasoning
@@ -271,7 +278,7 @@ get_human_resemblance_plot(resemblance_dt, questions, title)
 
 #### Accuracy
 
-```{r Plotting Human 100%}
+```{r Classification Accuracy Plot}
 reason <- paste(
   "Reasoning:",
   reasoning
@@ -300,7 +307,7 @@ get_accuracy_plot(accuracy_dt, questions, title)
 ###############################################################################
 # Change settings HERE
 # Options: with, without
-accuracy <- "with"
+accuracy <- "without"
 # Agreement questions to be visualized
 questions <- paste0("A", c("2", "3", "4", "5", "6"))
 ##############################################################################
@@ -315,15 +322,17 @@ path <- paste(
 
 #### Data Tables
 
-```{r Data Agreement Plot}
+```{r Agreement Data Table}
 human_dt <- get_human_dt()
 llm_dt <- get_llm_dt(path)
 agreement_dt <- get_agreement_dt(questions, human_dt, llm_dt)
+mean_agreement_dt <- agreement_dt %>% group_by(id) %>%
+  summarise_at(vars(-Question), funs(mean(., na.rm=TRUE)))
 ```
 
 #### Human resemblance
 
-```{r Data Agreement Plot}
+```{r Agreement Plots}
 agreement_questions <- paste(
   questions,
   collapse = ", "
@@ -342,20 +351,115 @@ correlation <- paste(
   )
 )
 
-main <- paste(
-  "How Similar Are Human and LLM Agreement Scores for questions ",
+agreement_main <- paste(
+  "How Similar Are Human and LLM Agreement Scores for questions \n",
   agreement_questions,
   "?",
   sep = ""
 )
 
-title <- paste(
-  main,
+agreement_title <- paste(
+  agreement_main,
   prompting,
-  correlation,
+  # correlation,
   sep = "\n"
 )
 
-get_agreement_plot(agreement_dt, title)
+get_agreement_scatterplot(agreement_dt, title)
+get_barplot(agreement_dt, "diff", title)
+
+mean_agreement_main <- paste(
+  "How Similar Are Mean Human and LLM Agreement Scores for questions \n",
+  agreement_questions,
+  "?",
+  sep = ""
+)
+
+mean_agreement_title <- paste(
+  mean_agreement_main,
+  prompting,
+  sep = "\n"
+)
+
+get_agreement_scatterplot(mean_agreement_dt, title)
+get_barplot(mean_agreement_dt, "diff", title)
 ```
 
+
+#### Statistical Tests
+
+Spearman:
+"The Spearman rank-order correlation coefficient (Spearman’s correlation, for 
+short) is a nonparametric measure of the strength and direction of association 
+that exists between two variables measured on at least an ordinal scale." 
+[Source](https://statistics.laerd.com/spss-tutorials/spearmans-rank-order-correlation-using-spss-statistics.php#:~:text=The%20Spearman%20rank%2Dorder%20correlation,letter%20%CF%81%2C%20pronounced%20rho).)
+
+```{r Spearman}
+cor.test(agreement_dt$Human, agreement_dt$LLM, method = "spearman")
+cor.test(mean_agreement_dt$Human, mean_agreement_dt$LLM, method = "spearman")
+```
+
+Wilcoxon signed ranks test:
+- Non-parametric equivalent to paired t-test
+- Used when two measurements of the same dependent variable are taken at 
+  different time points
+- Wilcoxon test can be used to compare individual ordinal questions such as 
+  those asking for opinions on understanding the condition
+- Effect size (Cohen's classification): 0.1 (small effect), 
+  0.3 (moderate effect) and 0.5 and above (large effect).
+
+```{r Wilcoxon}
+wilcoxon <- wilcox.test(
+  agreement_dt$Human, 
+  agreement_dt$LLM, 
+  paired = T, 
+  conf.int = T,
+  exact = T,
+  alternative = "two.sided"
+)
+
+Zstat <- qnorm(wilcoxon$p.value/2)
+
+effect_size <- abs(Zstat)/sqrt(20)
+
+wilcoxon
+effect_size
+
+wilcoxon <- wilcox.test(
+  mean_agreement_dt$Human, 
+  mean_agreement_dt$LLM, 
+  paired = T, 
+  conf.int = T,
+  exact = T,
+  alternative = "two.sided"
+)
+
+Zstat <- qnorm(wilcoxon$p.value/2)
+
+effect_size <- abs(Zstat)/sqrt(20)
+
+wilcoxon
+effect_size
+```
+
+
+T-test:
+For comparison. However, the data is not continuous and the normality 
+assumption not met. Therefore, it is appropriate to use the nonparametric 
+alternative, which is the Wilcoxon signed ranks test.
+
+```{r T Test}
+t.test(
+  agreement_dt$Human, 
+  agreement_dt$LLM, 
+  paired = TRUE, 
+  alternative = "two.sided"
+)
+
+t.test(
+  mean_agreement_dt$Human, 
+  mean_agreement_dt$LLM, 
+  paired = TRUE, 
+  alternative = "two.sided"
+)
+```
