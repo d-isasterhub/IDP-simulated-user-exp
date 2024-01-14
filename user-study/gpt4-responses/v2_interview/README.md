@@ -63,6 +63,7 @@ For example, to simulate questions 1, 7, and 13, run
 - `--questions`: which of the agreement questions to simulate (by default: questions 2, 3, 4, 5, 6)
 - `--example`: which question to show the LLM as an example (by default: the first one)
 To set whether to include the number of questions that the user answered correctly in the prompt, use either `--with_accuracy` or `--without_accuracy`. If neither option is given, simulations will be run with accuracy.
+Additionally, the average human score for the agreement questions can be included with the '--with_average' option.
 
 Example:
 ```
