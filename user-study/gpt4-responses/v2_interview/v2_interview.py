@@ -29,7 +29,8 @@ from utils.questionnaire import (
     select_questions,
     find_imagepaths,
     count_correct_LLM_answers,
-    count_correct_human_answers
+    count_correct_human_answers,
+    average_agreement_score
 )
 
 from utils.prompts import (
@@ -178,12 +179,21 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_pr
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int) -> str:
+def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int, with_average: bool, average_score: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
-            To do
+            user (UserProfile) : object representing the user that is simulated
+            actual_q (int) : number of agreement question to ask
+            example_q (int) : number of agreement question to show as example
+            example_a (int) : human answer to example question
+            profiling (bool) : whether to use profiling
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            number_correct (int) : number of correctly answered questions by human
+            with_average (bool) : whether to include the average agreement score of human
+            average_score (int) : average agreement score of human
+        
         Returns:
             (str) : simulated and cleaned question answer
     """
@@ -191,6 +201,8 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_PROMPTS["previous"] +\
         ("" if not profiling else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
         ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
+        ("" if not with_average else ("You would rate your overall understanding of the model explanations and the study questions in general a " + \
+                                      str(average_score) + " on a scale from 1 to 7, where 1 represents the lowest and 7 represents the highest level of understanding."))+\
         AGREEMENT_PROMPTS["task"] +\
         AGREEMENT_PROMPTS["question"] +\
         AGREEMENT_QUESTIONS[example_q] +\
@@ -291,14 +303,16 @@ def profile_users(profiles:[UserProfile], profiling:bool):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, example_q: int):
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, example_q: int, with_average: bool):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (bool) : whether to use profiling
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            example_q (int) : number of agreement question to show as example
+            with_average (bool) : whether to include the average agreement score of human
     """
     # find (previous) results    
     out_path = agree_output_path(with_accuracy, "results")
@@ -311,6 +325,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
 
         user_id = user.user_background['id']
         number_correct = count_correct_human_answers(user)
+        average_score = average_agreement_score(user)
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
@@ -324,7 +339,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question] not in options:
                 try:
-                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling, with_accuracy, number_correct)
+                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling, with_accuracy, number_correct, with_average, average_score)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -439,5 +454,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # generate_heatmap_descriptions(list(range(1,21)))
     sys.exit(main())
