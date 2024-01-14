@@ -1,0 +1,113 @@
+---
+title: "Error analysis"
+author: "Rai Trouvain"
+date: "2024-01-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include = FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+## Building Table of all answers
+
+```{r sim version}
+profiling <- TRUE
+reasoning <- "reason_heatmap_first/"
+```
+
+```{r Loading Data}
+
+human_dt <- fread(
+  "../data-exploration-cleanup/cleaned_simulatedusers.csv",
+)[,-1]
+human_dt[, id := 0:(nrow(human_dt)-1)]
+
+llm_dt <- fread(
+  paste("../gpt4-responses/v2_interview/out/",
+        reasoning,
+        if (profiling) {"profile/"} else {"no_profile/"},
+        "results.csv", sep = "")
+)
+
+correct_dt <- fread("../gpt4-responses/v2_interview/prediction_questions.csv") %>%
+  .[, Question := paste0("Q", ID)] %>%
+  .[, mget(c("Question", "correct_answer"))]
+colnames(correct_dt) <- c("Question", "Correct_Answer")
+
+```
+
+```{r Cleaning Data}
+
+colnames(llm_dt) <- sub('^LLM_', '', colnames(llm_dt))
+llm_dt <- llm_dt %>% melt(id.vars = "id", variable.name="Question", value.name = "LLM_Answer")
+
+human_dt <- human_dt %>% .[, mget(c("id", correct_dt[["Question"]]))] %>% melt(id.vars = "id", variable.name="Question", value.name = "Human_Answer")
+
+
+```
+
+```{r Joined Results}
+
+results_dt <- merge(llm_dt, human_dt, by=c("id", "Question"))
+results_dt <- merge(results_dt, correct_dt, by="Question")
+
+results_dt
+
+results_dt$Same_Answer <- results_dt$LLM_Answer == results_dt$Human_Answer
+results_dt$Neither_Correct <- (results_dt$LLM_Answer != results_dt$Correct_Answer) & (results_dt$Human_Answer != results_dt$Correct_Answer)
+summary(full_dt)
+
+answer_differences <- table(results_dt$Same_Answer, full_dt$Neither_Correct)
+rownames(answer_differences) <- c("Human != LLM", "Human == LLM")
+colnames(answer_differences) <- c("Either correct", "Neither correct")
+answer_differences
+
+```
+
+## Filtering for errors
+
+```{r Filtering}
+
+errors_dt <- results_dt %>% filter(!Same_Answer)
+summary(errors_dt)
+
+errors_dt$Question <- ordered(errors_dt$Question, levels=paste0("Q", 1:20))
+
+errors_dt <- errors_dt[order(errors_dt$Question)]
+
+write.csv(errors_dt, "heatmap_first_errors.csv")
+
+```
+
+
+## Adding qualitative errors
+
+```{r Broad error types}
+
+heatmap_dt <- fread("heatmap_errors_v1.csv")
+description_dt <- fread("human_description_errors.csv")
+
+full_dt <- merge(results_dt, heatmap_dt, by="Question")
+full_dt <- merge(full_dt, description_dt, by="id", suffix = c("_Heatmap", "_Human_Desc"))
+
+full_dt
+
+```
+```{r Some Scatterplots}
+
+full_dt %>% ggplot(aes(x=full_dt$Same_Answer, y=full_dt$Description)) + geom_point() + geom_jitter()
+
+full_dt %>% ggplot(aes(y=full_dt$Problem_Human_Desc, x=full_dt$Problem_Heatmap, color=full_dt$Same_Answer)) + geom_point() + geom_jitter() 
+
+```
+
+
