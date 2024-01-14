@@ -87,10 +87,16 @@ def initialize_parser():
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
+    
     accuracy_parser = agreement_parser.add_mutually_exclusive_group(required=False)
     accuracy_parser.add_argument('--with_accuracy', dest='with_accuracy', action='store_true')
     accuracy_parser.add_argument('--without_accuracy', dest='with_accuracy', action='store_false')
     agreement_parser.set_defaults(with_accuracy=True)
+
+    average_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    average_parser.add_argument('--with_average', dest='with_average', action='store_true')
+    average_parser.add_argument('--without_average', dest='with_average', action='store_false')
+    agreement_parser.set_defaults(with_average=False)
     
     return parser
 
