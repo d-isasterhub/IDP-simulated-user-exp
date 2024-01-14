@@ -128,4 +128,4 @@ def average_agreement_score(user: UserProfile) -> float:
         
         score_sum += score
     
-    return 0 if number_questions == 0 else round(score_sum / number_questions, 1)
+    return 0 if number_questions == 0 else round(score_sum / number_questions)
