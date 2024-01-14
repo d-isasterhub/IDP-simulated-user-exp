@@ -89,6 +89,11 @@ def initialize_parser():
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
     
+    example_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    example_parser.add_argument('--with_example', dest='with_example', action='store_true')
+    example_parser.add_argument('--without_example', dest='with_example', action='store_false')
+    agreement_parser.set_defaults(with_example=True)
+    
     accuracy_parser = agreement_parser.add_mutually_exclusive_group(required=False)
     accuracy_parser.add_argument('--with_accuracy', dest='with_accuracy', action='store_true')
     accuracy_parser.add_argument('--without_accuracy', dest='with_accuracy', action='store_false')
