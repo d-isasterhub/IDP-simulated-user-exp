@@ -222,7 +222,7 @@ def single_agreement(user : UserProfile, actual_q: int, with_example: bool, exam
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open(agree_output_path(with_accuracy, "protocol"), mode="a+") as f:
+    with open(agree_output_path(with_accuracy, with_average, with_example, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling:
             f.write(user.profiling_prompt)
@@ -329,7 +329,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             with_average (bool) : whether to include the average agreement score of human
     """
     # find (previous) results    
-    out_path = agree_output_path(with_accuracy, "results")
+    out_path = agree_output_path(with_accuracy, with_average, with_example, "results")
     results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
@@ -362,7 +362,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
         save_result_df(results_df, out_path)
 
     # saving the result dataframe again
-    save_result_df(results_df, agree_output_path(with_accuracy, "results"))
+    save_result_df(results_df, agree_output_path(with_accuracy, with_average, with_example, "results"))
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling:bool, reasoning:ReasoningOption, heatmap_descriptions:dict[int, str]=None):
