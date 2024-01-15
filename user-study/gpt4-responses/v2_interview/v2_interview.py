@@ -84,7 +84,7 @@ def initialize_parser():
                                 help="id(s) of questions to simulate")
 
     agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
-    agreement_parser.add_argument('--questions', default=[2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
+    agreement_parser.add_argument('--questions', default=[1,2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
@@ -464,7 +464,8 @@ def main():
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:
-        simulate_agreements(args.questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average)
+        agreement_questions = set(args.questions).difference(set([args.example])) if args.with_example else args.questions
+        simulate_agreements(agreement_questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average)
 
 
 if __name__ == '__main__':
