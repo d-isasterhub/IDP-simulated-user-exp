@@ -315,11 +315,15 @@ get_accuracy_plot(accuracy_dt, questions, title)
 ###############################################################################
 # Change settings HERE
 # Options: with, without
-accuracy <- "with"
-example <- "without"
-average <- "without"
+accuracy <- "without"
+example <- "with"
+average <- "with"
 # Agreement questions to be visualized
-questions <- paste0("A", c("1", "2", "3", "4", "5", "6"))
+if (example == "with"){
+  questions <- paste0("A", c("2", "3", "4", "5", "6"))
+} else {
+  questions <- paste0("A", c("1", "2", "3", "4", "5", "6"))
+}
 ##############################################################################
 
 path <- paste(
@@ -356,7 +360,11 @@ agreement_questions <- paste(
 prompting <- paste(
   "Prompt",
   accuracy,
-  "accuracy of classification guesses."
+  "accuracy,",
+  average,
+  "average.",
+  example,
+  "example of classification guesses."
 )
 
 correlation <- paste(
