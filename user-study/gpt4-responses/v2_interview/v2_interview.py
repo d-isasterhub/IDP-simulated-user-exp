@@ -236,7 +236,7 @@ def single_agreement(user : UserProfile, actual_q: int, with_example: bool, exam
         f.write(QUESTION)
         f.write("\n")
 
-        llm_response = LLM_agreement(user, example_a, profiling, INTRO_PROFILE, EXAMPLE, QUESTION, with_example)
+        llm_response = LLM_agreement(user, profiling, INTRO_PROFILE, QUESTION, with_example, EXAMPLE, example_a)
         
         answer = llm_response # no processing here (yet)
         
