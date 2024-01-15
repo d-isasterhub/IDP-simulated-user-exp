@@ -134,10 +134,18 @@ get_accuracy_dt <- function(questions, dt_h, dt_llm, correct){
      ) %>% as.data.table()
 }
 
-get_agreement_dt <- function(questions, dt_h, dt_llm) {
-  human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+get_agreement_dt <- function(questions, dt_h, dt_llm, with_example) {
+  if (with_example) {
+    human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+  } else {
+    human_agreement <- c("Q_1", "Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+  }
   human_agreement_dt <- dt_h[, mget(c("id", human_agreement))]
-  agreement <- paste0("A", 2:6)
+  if (with_example) {
+    agreement <- paste0("A", 2:6)
+  } else {
+    agreement <- paste0("A", 1:6)
+  }
   colnames(human_agreement_dt) <- c("id", agreement)
   
   tidy <- get_tidy_dt(questions, human_agreement_dt, dt_llm) %>% dcast(... ~ User)
@@ -307,15 +315,22 @@ get_accuracy_plot(accuracy_dt, questions, title)
 ###############################################################################
 # Change settings HERE
 # Options: with, without
-accuracy <- "without"
+accuracy <- "with"
+example <- "without"
+average <- "without"
 # Agreement questions to be visualized
-questions <- paste0("A", c("2", "3", "4", "5", "6"))
+questions <- paste0("A", c("1", "2", "3", "4", "5", "6"))
 ##############################################################################
 
 path <- paste(
   "../gpt4-responses/v2_interview/out/agreement/",
   accuracy,
-  "_accuracy_results.csv",
+  "_accuracy/",
+  example,
+  "_example/",
+  average,
+  "_average/",
+  "results.csv",
   sep = ''
 )
 ```
@@ -325,7 +340,7 @@ path <- paste(
 ```{r Agreement Data Table}
 human_dt <- get_human_dt()
 llm_dt <- get_llm_dt(path)
-agreement_dt <- get_agreement_dt(questions, human_dt, llm_dt)
+agreement_dt <- get_agreement_dt(questions, human_dt, llm_dt, example =="with")
 mean_agreement_dt <- agreement_dt %>% group_by(id) %>%
   summarise_at(vars(-Question), funs(mean(., na.rm=TRUE)))
 ```
@@ -361,12 +376,12 @@ agreement_main <- paste(
 agreement_title <- paste(
   agreement_main,
   prompting,
-  # correlation,
+  correlation,
   sep = "\n"
 )
 
-get_agreement_scatterplot(agreement_dt, title)
-get_barplot(agreement_dt, "diff", title)
+get_agreement_scatterplot(agreement_dt, agreement_title)
+get_barplot(agreement_dt, "diff", agreement_title)
 
 mean_agreement_main <- paste(
   "How Similar Are Mean Human and LLM Agreement Scores for questions \n",
@@ -381,8 +396,8 @@ mean_agreement_title <- paste(
   sep = "\n"
 )
 
-get_agreement_scatterplot(mean_agreement_dt, title)
-get_barplot(mean_agreement_dt, "diff", title)
+get_agreement_scatterplot(mean_agreement_dt, mean_agreement_title)
+get_barplot(mean_agreement_dt, "diff", mean_agreement_title)
 ```
 
 
