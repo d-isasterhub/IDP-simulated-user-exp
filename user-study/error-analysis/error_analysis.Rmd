@@ -64,9 +64,9 @@ results_dt
 
 results_dt$Same_Answer <- results_dt$LLM_Answer == results_dt$Human_Answer
 results_dt$Neither_Correct <- (results_dt$LLM_Answer != results_dt$Correct_Answer) & (results_dt$Human_Answer != results_dt$Correct_Answer)
-summary(full_dt)
+summary(results_dt)
 
-answer_differences <- table(results_dt$Same_Answer, full_dt$Neither_Correct)
+answer_differences <- table(results_dt$Same_Answer, results_dt$Neither_Correct)
 rownames(answer_differences) <- c("Human != LLM", "Human == LLM")
 colnames(answer_differences) <- c("Either correct", "Neither correct")
 answer_differences
@@ -108,6 +108,7 @@ full_dt %>% ggplot(aes(x=full_dt$Same_Answer, y=full_dt$Description)) + geom_poi
 
 full_dt %>% ggplot(aes(y=full_dt$Problem_Human_Desc, x=full_dt$Problem_Heatmap, color=full_dt$Same_Answer)) + geom_point() + geom_jitter() 
 
+full_dt %>% ggplot(aes(y=full_dt$Description, color=full_dt$Same_Answer, fill=full_dt$Same_Answer))+geom_bar( position = position_dodge())
 ```
 
 
