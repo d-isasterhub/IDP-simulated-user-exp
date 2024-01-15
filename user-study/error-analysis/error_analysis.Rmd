@@ -102,13 +102,17 @@ full_dt <- merge(full_dt, description_dt, by="id", suffix = c("_Heatmap", "_Huma
 full_dt
 
 ```
-```{r Some Scatterplots}
+```{r Some Plots}
 
 full_dt %>% ggplot(aes(x=full_dt$Same_Answer, y=full_dt$Description)) + geom_point() + geom_jitter()
 
 full_dt %>% ggplot(aes(y=full_dt$Problem_Human_Desc, x=full_dt$Problem_Heatmap, color=full_dt$Same_Answer)) + geom_point() + geom_jitter() 
 
-full_dt %>% ggplot(aes(y=full_dt$Description, color=full_dt$Same_Answer, fill=full_dt$Same_Answer))+geom_bar( position = position_dodge())
+full_dt %>% ggplot(aes(x=full_dt$Description, color=full_dt$Same_Answer, fill=full_dt$Same_Answer))+geom_bar( position = position_dodge())
+
+full_dt %>% ggplot(aes(y=full_dt$Problem_Heatmap, color=full_dt$Same_Answer, fill=full_dt$Same_Answer))+geom_bar( position = position_dodge())
+
+full_dt %>% ggplot(aes(y=full_dt$Problem_Human_Desc, color=full_dt$Same_Answer, fill=full_dt$Same_Answer))+geom_bar( position = position_dodge())
 ```
 
 
