@@ -231,7 +231,7 @@ def single_agreement(user : UserProfile, actual_q: int, with_example: bool, exam
         if with_example:
             f.write(EXAMPLE)
             f.write("\n")
-        f.write(str(example_a))
+            f.write(str(example_a))
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
