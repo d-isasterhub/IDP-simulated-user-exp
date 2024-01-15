@@ -29,7 +29,8 @@ from utils.questionnaire import (
     select_questions,
     find_imagepaths,
     count_correct_LLM_answers,
-    count_correct_human_answers
+    count_correct_human_answers,
+    average_agreement_score
 )
 
 from utils.prompts import (
@@ -83,14 +84,25 @@ def initialize_parser():
                                 help="id(s) of questions to simulate")
 
     agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
-    agreement_parser.add_argument('--questions', default=[2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
+    agreement_parser.add_argument('--questions', default=[1,2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
+    
+    example_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    example_parser.add_argument('--with_example', dest='with_example', action='store_true')
+    example_parser.add_argument('--without_example', dest='with_example', action='store_false')
+    agreement_parser.set_defaults(with_example=True)
+    
     accuracy_parser = agreement_parser.add_mutually_exclusive_group(required=False)
     accuracy_parser.add_argument('--with_accuracy', dest='with_accuracy', action='store_true')
     accuracy_parser.add_argument('--without_accuracy', dest='with_accuracy', action='store_false')
     agreement_parser.set_defaults(with_accuracy=True)
+
+    average_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    average_parser.add_argument('--with_average', dest='with_average', action='store_true')
+    average_parser.add_argument('--without_average', dest='with_average', action='store_false')
+    agreement_parser.set_defaults(with_average=False)
     
     return parser
 
@@ -145,15 +157,17 @@ def LLM_prediction_profile_first(user: UserProfile, image_path: str, profiling: 
     return actual_response
 
 
-def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_prompt: str, question_prompt: str) -> str:
+def LLM_agreement(user: UserProfile, profiling: bool, introprofile_prompt: str, question_prompt: str, with_example: bool, example_prompt: str, example_a: int) -> str:
     """Main part of the interview simulation: profiles a user, gives an agreement question as an example and finally asks an agreement question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
-            image_path (str) : path to the image corresponding to the question
-            profiling_level (str) : level of profiling to give
-            heatmap_description (str) : heatmap description associated with the question
-            question (str) : adapted question prompt with necessary profiling info
+            profiling (bool) : whether to include profiling info
+            introprofile_prompt (str) : prompt introducing context and task
+            question_prompt (str) : prompt with actual question
+            with_example (bool) : whether to include example question
+            example_prompt (str) : prompt with example question
+            example_a (int) : answer to example question
         
         Returns:
             (str) : simulated question answer
@@ -163,8 +177,9 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_pr
             max_tokens = 400,
             messages = 
                 (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
-                get_msg(role="user", prompt=example_prompt) +\
-                get_msg(role="assistant", prompt=str(example_a)) +\
+                get_msg(role="user", prompt=introprofile_prompt) +\
+                (get_msg(role="user", prompt=example_prompt) if with_example else []) +\
+                (get_msg(role="assistant", prompt=str(example_a)) if with_example else []) +\
                 get_msg(role="user", prompt=question_prompt) 
         )
 
@@ -172,21 +187,34 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_pr
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int) -> str:
+def single_agreement(user : UserProfile, actual_q: int, with_example: bool, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int, with_average: bool, average_score: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
-            To do
+            user (UserProfile) : object representing the user that is simulated
+            actual_q (int) : number of agreement question to ask
+            with_example (bool) : whether to show a question as example
+            example_q (int) : number of agreement question to show as example
+            example_a (int) : human answer to example question
+            profiling (bool) : whether to use profiling
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            number_correct (int) : number of correctly answered questions by human
+            with_average (bool) : whether to include the average agreement score of human
+            average_score (int) : average agreement score of human
+        
         Returns:
             (str) : simulated and cleaned question answer
     """
-    EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
+    INTRO_PROFILE = AGREEMENT_PROMPTS["intro"] + \
         AGREEMENT_PROMPTS["previous"] +\
         ("" if not profiling else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
         ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
-        AGREEMENT_PROMPTS["task"] +\
-        AGREEMENT_PROMPTS["question"] +\
+        ("" if not with_average else ("You would rate your overall understanding of the model explanations and the study questions in general a " + \
+                                      str(average_score) + " on a scale from 1 to 7, where 1 represents the lowest and 7 represents the highest level of understanding."))+\
+        AGREEMENT_PROMPTS["task"]
+    
+    EXAMPLE = AGREEMENT_PROMPTS["question"] +\
         AGREEMENT_QUESTIONS[example_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
@@ -194,18 +222,21 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open(agree_output_path(with_accuracy, "protocol"), mode="a+") as f:
+    with open(agree_output_path(with_accuracy, with_average, with_example, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling:
             f.write(user.profiling_prompt)
-        f.write(EXAMPLE)
+        f.write(INTRO_PROFILE)
         f.write("\n")
-        f.write(str(example_a))
+        if with_example:
+            f.write(EXAMPLE)
+            f.write("\n")
+            f.write(str(example_a))
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
 
-        llm_response = LLM_agreement(user, example_a, profiling, EXAMPLE, QUESTION)
+        llm_response = LLM_agreement(user, profiling, INTRO_PROFILE, QUESTION, with_example, EXAMPLE, example_a)
         
         answer = llm_response # no processing here (yet)
         
@@ -285,17 +316,20 @@ def profile_users(profiles:[UserProfile], profiling:bool):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, example_q: int):
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, with_example: bool, example_q: int, with_average: bool):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (bool) : whether to use profiling
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            with_example (bool) : whether to show a question as example
+            example_q (int) : number of agreement question to show as example
+            with_average (bool) : whether to include the average agreement score of human
     """
     # find (previous) results    
-    out_path = agree_output_path(with_accuracy, "results")
+    out_path = agree_output_path(with_accuracy, with_average, with_example, "results")
     results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
@@ -305,6 +339,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
 
         user_id = user.user_background['id']
         number_correct = count_correct_human_answers(user)
+        average_score = average_agreement_score(user)
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
@@ -318,7 +353,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question] not in options:
                 try:
-                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling, with_accuracy, number_correct)
+                    results_df.at[user_id, question] = single_agreement(user, q, with_example, example_q, example_a, profiling, with_accuracy, number_correct, with_average, average_score)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -327,7 +362,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
         save_result_df(results_df, out_path)
 
     # saving the result dataframe again
-    save_result_df(results_df, agree_output_path(with_accuracy, "results"))
+    save_result_df(results_df, agree_output_path(with_accuracy, with_average, with_example, "results"))
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling:bool, reasoning:ReasoningOption, heatmap_descriptions:dict[int, str]=None):
@@ -429,9 +464,9 @@ def main():
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:
-        simulate_agreements(args.questions, profiles, args.profiling, args.with_accuracy, args.example)
+        agreement_questions = set(args.questions).difference(set([args.example])) if args.with_example else args.questions
+        simulate_agreements(agreement_questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average)
 
 
 if __name__ == '__main__':
-    # generate_heatmap_descriptions(list(range(1,21)))
     sys.exit(main())
