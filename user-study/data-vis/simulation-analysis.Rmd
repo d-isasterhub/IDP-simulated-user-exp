@@ -316,7 +316,7 @@ get_accuracy_plot(accuracy_dt, questions, title)
 # Change settings HERE
 # Options: with, without
 accuracy <- "without"
-example <- "with"
+example <- "without"
 average <- "with"
 # Agreement questions to be visualized
 if (example == "with"){
@@ -362,7 +362,7 @@ prompting <- paste(
   accuracy,
   "accuracy,",
   average,
-  "average.",
+  "average,",
   example,
   "example of classification guesses."
 )
