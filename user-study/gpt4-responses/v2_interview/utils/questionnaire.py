@@ -2,12 +2,20 @@ import random
 import pandas as pd
 
 from .profiling import (
-    UserProfile
+    UserProfile,
+    Auklets
 )
 
 from .file_interactions import (
     bird_output_path
 )
+
+EXAMPLE_IMAGES = {
+    Auklets.CRESTED : "crestedauklet_01.png",
+    Auklets.LEAST : "leastauklet_05.png",
+    Auklets.PARAKEET : "parakeetauklet_04.png",
+    Auklets.RHINOCEROS : "rhinocerosauklet_05.png"
+}
 
 def find_imagepaths(path_to_csv:str, indices:[int]) -> [(int, str)]:
     """Reads file paths associated with questions from csv file
