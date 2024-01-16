@@ -29,7 +29,8 @@ from utils.questionnaire import (
     select_questions,
     find_imagepaths,
     count_correct_LLM_answers,
-    count_correct_human_answers
+    count_correct_human_answers,
+    EXAMPLE_IMAGES
 )
 
 from utils.prompts import (
@@ -40,7 +41,9 @@ from utils.prompts import (
     AGREEMENT_QUESTIONS,
     ReasoningOption,
     USER_QUESTION_NODESC,
-    USER_INSTRUCTS
+    USER_INSTRUCTS,
+    USER_NOPROFILING_1,
+    USER_NOPROFILING_2
 )
 
 from utils.answer_processing import (
@@ -100,6 +103,32 @@ def initialize_parser():
     agreement_parser.set_defaults(with_accuracy=True)
     
     return parser
+
+
+def LLM_prediction_no_profile(image_path: str, reasoning: ReasoningOption) -> str:
+    """Main part of the interview simulation, no profiling: gives LLM example heatmaps, then asks user study question.
+    
+        Args:
+            image_path (str) : path to the image corresponding to the question
+            reasoning (ReasoningOption) : variation of prompts to use 
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                get_msg(role="user", prompt=USER_PROMPTS[(reasoning, "intro")]+USER_NOPROFILING_1) +\
+                get_msg_with_image(role="user", prompt="Crested Auklet:", image=EXAMPLE_IMAGES[Auklets.CRESTED]) +\
+                get_msg_with_image(role="user", prompt="Least Auklet:", image=EXAMPLE_IMAGES[Auklets.LEAST]) +\
+                get_msg_with_image(role="user", prompt="Parakeet Auklet:", image=EXAMPLE_IMAGES[Auklets.PARAKEET]) +\
+                get_msg_with_image(role="user", prompt="Rhinoceros Auklet:", image=EXAMPLE_IMAGES[Auklets.RHINOCEROS]) +\
+                get_msg(role="user", prompt=USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning]) 
+        )
+
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
 
 
 def LLM_prediction_heatmap_first(user:UserProfile, image_path: str, profiling: bool, heatmap_description: str, question: str) -> str:
@@ -242,13 +271,15 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
-    if reasoning == ReasoningOption.HEATMAP_FIRST:
-        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + \
+    if not profiling:
+        QUESTION = USER_NOPROFILING_1 + "[EXAMPLES]. " + USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning]
+    elif reasoning == ReasoningOption.HEATMAP_FIRST:
+        QUESTION = user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + \
             USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     else:
         QUESTION = USER_PROMPTS[(reasoning, "intro")] + \
-            ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + \
-            (USER_PROMPTS[(reasoning, "question")] if profiling else USER_QUESTION_NODESC + USER_INSTRUCTS[reasoning])
+            user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + \
+            USER_PROMPTS[(reasoning, "question")]
     # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
@@ -256,8 +287,8 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling == 'full':
             f.write(user.profiling_prompt)
+        f.write(USER_PROMPTS[(reasoning, "intro")])
         if reasoning == ReasoningOption.HEATMAP_FIRST:
-            f.write(USER_PROMPTS[(reasoning, "intro")])
             f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
             print(str(heatmap_description))
@@ -267,7 +298,9 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write(QUESTION)
         f.write("\n")
 
-        if reasoning == ReasoningOption.HEATMAP_FIRST:
+        if not profiling:
+            llm_response = LLM_prediction_no_profile(image_path, reasoning)
+        elif reasoning == ReasoningOption.HEATMAP_FIRST:
             llm_response = LLM_prediction_heatmap_first(user, image_path, profiling, heatmap_description, QUESTION)
         else:
             llm_response = LLM_prediction_profile_first(user, image_path, profiling, QUESTION)
