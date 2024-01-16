@@ -239,6 +239,16 @@ USER_QUESTION_DESC = "Based on the descriptions and the areas highlighted by the
     "- Parakeet Auklet\n"\
     "- Rhinoceros Auklet\n"
 
+USER_NOPROFILING_1 = "As guidance, here are some example images that can help you understand how each bird type is distinguished: "
+
+USER_NOPROFILING_2 = "Now, please consider the following image. Based on the examples and the areas highlighted by the heatmap, which bird"\
+    "species do you think was predicted for the given image? Choose one of the following options "\
+    "for your answer: \n"\
+    "- Crested Auklet\n"\
+    "- Least Auklet\n"\
+    "- Parakeet Auklet\n"\
+    "- Rhinoceros Auklet\n"
+
 USER_INSTRUCT_NO_REASON = "Answer with the bird name only."
 
 USER_INSTRUCT_PROFILE_FIRST = "First, describe all areas of the bird that are highlighted in the heatmap. Finally, for each bird "\
