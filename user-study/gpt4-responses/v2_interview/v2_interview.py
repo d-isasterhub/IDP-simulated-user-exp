@@ -124,7 +124,7 @@ def LLM_prediction_no_profile(image_path: str, reasoning: ReasoningOption) -> st
                 get_msg_with_image(role="user", prompt="Least Auklet:", image=EXAMPLE_IMAGES[Auklets.LEAST]) +\
                 get_msg_with_image(role="user", prompt="Parakeet Auklet:", image=EXAMPLE_IMAGES[Auklets.PARAKEET]) +\
                 get_msg_with_image(role="user", prompt="Rhinoceros Auklet:", image=EXAMPLE_IMAGES[Auklets.RHINOCEROS]) +\
-                get_msg(role="user", prompt=USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning]) 
+                get_msg_with_image(role="user", prompt=USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning], image=image_path) 
         )
 
     actual_response = response["choices"][0]["message"]["content"] # have a string
