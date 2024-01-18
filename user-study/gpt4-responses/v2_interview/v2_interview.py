@@ -436,7 +436,7 @@ def main():
     # ----------------------------------------- profiling -----------------------------------------------
 
     if not args.profiling:
-        profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
+        profiles:[UserProfile] = args.number_users * [UserProfile(DEFAULT_DATA)]
     else:
         # find users
         profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 
