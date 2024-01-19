@@ -20,7 +20,7 @@ def get_llm_heatmap_description(image_path:str) -> str:
             max_tokens = 400,
             messages = 
                 (get_msg(role="user", prompt=USER_INTRO_4)) +\
-                get_msg_with_image(role="user", prompt=USER_HEATMAP_4+" "+TOKENS_LOW, image=image_path)
+                get_msg_with_image(role="user", prompt=USER_HEATMAP_4, image=image_path)
         )
     actual_response = response["choices"][0]["message"]["content"]
     return actual_response
