@@ -213,10 +213,13 @@ get_agreement_scatterplot <- function(dt, title) {
 }
 
 get_barplot <- function(dt, column, title) {
-  dt %>% ggplot(aes(as.factor(get(column)))) +
+  plot <- dt %>% ggplot(aes(get(column))) +
     geom_bar() +
     xlab(column) +
+    geom_vline(aes(xintercept = mean(get(column))), colour = 'red') +
+    xlim(-6,6) +
     ggtitle(title)
+  plot
 }
 ```
 
@@ -316,7 +319,7 @@ get_accuracy_plot(accuracy_dt, questions, title)
 # Change settings HERE
 # Options: with, without
 accuracy <- "without"
-example <- "without"
+example <- "with"
 average <- "with"
 # Agreement questions to be visualized
 if (example == "with"){
@@ -391,6 +394,13 @@ agreement_title <- paste(
 get_agreement_scatterplot(agreement_dt, agreement_title)
 get_barplot(agreement_dt, "diff", agreement_title)
 
+correlation <- paste(
+  "Spearman correlation:",
+  as.character(
+    round(cor(mean_agreement_dt$Human, mean_agreement_dt$LLM, method = "spearman"), 2)
+  )
+)
+
 mean_agreement_main <- paste(
   "How Similar Are Mean Human and LLM Agreement Scores for questions \n",
   agreement_questions,
@@ -401,6 +411,7 @@ mean_agreement_main <- paste(
 mean_agreement_title <- paste(
   mean_agreement_main,
   prompting,
+  correlation,
   sep = "\n"
 )
 
