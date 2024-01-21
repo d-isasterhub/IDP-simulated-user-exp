@@ -30,7 +30,8 @@ from utils.questionnaire import (
     find_imagepaths,
     count_correct_LLM_answers,
     count_correct_human_answers,
-    EXAMPLE_IMAGES
+    EXAMPLE_IMAGES,
+    average_agreement_score
 )
 
 from utils.prompts import (
@@ -43,7 +44,8 @@ from utils.prompts import (
     USER_QUESTION_NODESC,
     USER_INSTRUCTS,
     USER_NOPROFILING_1,
-    USER_NOPROFILING_2
+    USER_NOPROFILING_2,
+    EXAMPLE_IMAGE_PATH
 )
 
 from utils.answer_processing import (
@@ -67,14 +69,14 @@ def initialize_parser():
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
     #parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
     #                            help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--profiling', default=True, type=bool, 
-                                help="whether to include profiling infor or not (default: True)")
+    #parser.add_argument('--profiling', default=True, type=bool, 
+    #                            help="whether to include profiling infor or not (default: True)")
     profiling_parser = parser.add_mutually_exclusive_group(required=False)
     profiling_parser.add_argument('--with_profiling', dest='profiling', action='store_true')
     profiling_parser.add_argument('--without_profiling', dest='profiling', action='store_false')
     parser.set_defaults(profiling=True)
     
-    parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first'],
+    parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first', 'chain_of_thought'],
                                 help="whether and how to ask LLM for reasoning (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
@@ -93,17 +95,65 @@ def initialize_parser():
                                 help="id(s) of questions to simulate")
 
     agreement_parser = subparsers.add_parser('agreement', help='simulate agreement questions instead of XAI predictions.')
-    agreement_parser.add_argument('--questions', default=[2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
+    agreement_parser.add_argument('--questions', default=[1,2,3,4,5,6], type=int, nargs='+',# choices=range(1, 7), 
                                 help="questions to simulate")
     agreement_parser.add_argument('--example', default=1, type=int, choices=range(1, 7), 
                                 help="which question to show the LLM as example, default: %(default)")
+    
+    example_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    example_parser.add_argument('--with_example', dest='with_example', action='store_true')
+    example_parser.add_argument('--without_example', dest='with_example', action='store_false')
+    agreement_parser.set_defaults(with_example=True)
+    
     accuracy_parser = agreement_parser.add_mutually_exclusive_group(required=False)
     accuracy_parser.add_argument('--with_accuracy', dest='with_accuracy', action='store_true')
     accuracy_parser.add_argument('--without_accuracy', dest='with_accuracy', action='store_false')
     agreement_parser.set_defaults(with_accuracy=True)
+
+    average_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    average_parser.add_argument('--with_average', dest='with_average', action='store_true')
+    average_parser.add_argument('--without_average', dest='with_average', action='store_false')
+    agreement_parser.set_defaults(with_average=False)
+
+    average_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    average_parser.add_argument('--fixed_average', dest='fixed_average', action='store_true')
+    average_parser.add_argument('--user_average', dest='fixed_average', action='store_false')
+    agreement_parser.set_defaults(fixed_average=False)
     
     return parser
 
+
+def LLM_prediction_chain_of_thought(user:UserProfile, image_path_example: str, image_path_question: str, profiling: bool, question_example: str, question: str, answer_example: str) -> str:
+    """Main part of the interview simulation, chain of thought: profiles a user, give example question and answer, and then asks a user study question.
+    
+        Args:
+            user (UserProfile) : object representing the user that is simulated
+            image_path_example (str) : path to the image used for the example question
+            image_path_question (str) : path to the image used for the actual user study question 
+            profiling (bool) : whether to use profiling
+            example (str) : example question prompt with with predefined profiling info (bird descriptions)
+            question (str) : adapted question prompt with necessary profiling info
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    print(user.profiling_prompt if profiling else "no profiling")
+    print(question_example)
+    print(image_path_example)
+    print(answer_example)
+    print(question)
+    print(image_path_question)
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
+                get_msg_with_image(role="user", prompt=question_example, image=image_path_example) +\
+                get_msg(role="assistant", prompt=answer_example) +\
+                get_msg_with_image(role="user", prompt=question, image=image_path_question)
+        )
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
 
 def LLM_prediction_no_profile(image_path: str, reasoning: ReasoningOption) -> str:
     """Main part of the interview simulation, no profiling: gives LLM example heatmaps, then asks user study question.
@@ -181,15 +231,17 @@ def LLM_prediction_profile_first(user: UserProfile, image_path: str, profiling: 
     return actual_response
 
 
-def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_prompt: str, question_prompt: str) -> str:
+def LLM_agreement(user: UserProfile, profiling: bool, introprofile_prompt: str, question_prompt: str, with_example: bool, example_prompt: str, example_a: int) -> str:
     """Main part of the interview simulation: profiles a user, gives an agreement question as an example and finally asks an agreement question.
     
         Args:
             user (UserProfile) : object representing the user that is simulated
-            image_path (str) : path to the image corresponding to the question
-            profiling_level (str) : level of profiling to give
-            heatmap_description (str) : heatmap description associated with the question
-            question (str) : adapted question prompt with necessary profiling info
+            profiling (bool) : whether to include profiling info
+            introprofile_prompt (str) : prompt introducing context and task
+            question_prompt (str) : prompt with actual question
+            with_example (bool) : whether to include example question
+            example_prompt (str) : prompt with example question
+            example_a (int) : answer to example question
         
         Returns:
             (str) : simulated question answer
@@ -199,8 +251,9 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_pr
             max_tokens = 400,
             messages = 
                 (get_msg(role="system", prompt=user.profiling_prompt) if profiling else []) +\
-                get_msg(role="user", prompt=example_prompt) +\
-                get_msg(role="assistant", prompt=str(example_a)) +\
+                get_msg(role="user", prompt=introprofile_prompt) +\
+                (get_msg(role="user", prompt=example_prompt) if with_example else []) +\
+                (get_msg(role="assistant", prompt=str(example_a)) if with_example else []) +\
                 get_msg(role="user", prompt=question_prompt) 
         )
 
@@ -208,21 +261,34 @@ def LLM_agreement(user: UserProfile, example_a: int, profiling: bool, example_pr
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int) -> str:
+def single_agreement(user : UserProfile, actual_q: int, with_example: bool, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int, with_average: bool, fixed_average:bool, average_score: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
         Args:
-            To do
+            user (UserProfile) : object representing the user that is simulated
+            actual_q (int) : number of agreement question to ask
+            with_example (bool) : whether to show a question as example
+            example_q (int) : number of agreement question to show as example
+            example_a (int) : human answer to example question
+            profiling (bool) : whether to use profiling
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            number_correct (int) : number of correctly answered questions by human
+            with_average (bool) : whether to include the average agreement score of human
+            average_score (int) : average agreement score of human
+        
         Returns:
             (str) : simulated and cleaned question answer
     """
-    EXAMPLE = AGREEMENT_PROMPTS["intro"] + \
+    INTRO_PROFILE = AGREEMENT_PROMPTS["intro"] + \
         AGREEMENT_PROMPTS["previous"] +\
         ("" if not profiling else user.personalize_prompt(AGREEMENT_PROMPTS["profiling"])) +\
         ("" if not with_accuracy else ("Out of 20 images you were confronted with, you guessed the classification correctly for "+str(number_correct)+" of them. ")) +\
-        AGREEMENT_PROMPTS["task"] +\
-        AGREEMENT_PROMPTS["question"] +\
+        ("" if not with_average else ("You would rate your overall understanding of the model explanations and the study questions in general a " + \
+                                      str(average_score) + " on a scale from 1 to 7, where 1 represents the lowest and 7 represents the highest level of understanding."))+\
+        AGREEMENT_PROMPTS["task"]
+    
+    EXAMPLE = AGREEMENT_PROMPTS["question"] +\
         AGREEMENT_QUESTIONS[example_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
@@ -230,18 +296,21 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open(agree_output_path(with_accuracy, "protocol"), mode="a+") as f:
+    with open(agree_output_path(with_accuracy, with_average, fixed_average, with_example, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling:
             f.write(user.profiling_prompt)
-        f.write(EXAMPLE)
+        f.write(INTRO_PROFILE)
         f.write("\n")
-        f.write(str(example_a))
+        if with_example:
+            f.write(EXAMPLE)
+            f.write("\n")
+            f.write(str(example_a))
         f.write("\n")
         f.write(QUESTION)
         f.write("\n")
 
-        llm_response = LLM_agreement(user, example_a, profiling, EXAMPLE, QUESTION)
+        llm_response = LLM_agreement(user, profiling, INTRO_PROFILE, QUESTION, with_example, EXAMPLE, example_a)
         
         answer = llm_response # no processing here (yet)
         
@@ -252,7 +321,7 @@ def single_agreement(user : UserProfile, actual_q: int, example_q: int, example_
     return answer
 
 
-def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling : bool, reasoning : ReasoningOption, heatmap_description:str=None) -> str:
+def single_prediction(user : UserProfile, image_path : str, q_num : int, profiling : bool, reasoning : ReasoningOption, heatmap_description:str=None, image_path_example:str="") -> str:
     """Simulates an interview by first profiling a user and then asking a user study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
@@ -274,8 +343,11 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     if not profiling:
         QUESTION = USER_NOPROFILING_1 + "[EXAMPLES]. " + USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning]
     elif reasoning == ReasoningOption.HEATMAP_FIRST:
-        QUESTION = user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + \
-            USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
+        QUESTION = user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
+    elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
+        EXAMPLE_QUESTION = USER_PROMPTS[(reasoning, "example_profiling")] + USER_PROMPTS[(reasoning, "question")]
+        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
+        EXAMPLE_ANSWER = USER_PROMPTS[(reasoning, "example_answer")]
     else:
         QUESTION = USER_PROMPTS[(reasoning, "intro")] + \
             user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + \
@@ -285,7 +357,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
     # Get gpt-4 response and add the question + answer in the protocol
     with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
-        if profiling == 'full':
+        if profiling == True:
             f.write(user.profiling_prompt)
         f.write(USER_PROMPTS[(reasoning, "intro")])
         if reasoning == ReasoningOption.HEATMAP_FIRST:
@@ -293,6 +365,13 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
             f.write("\n")
             print(str(heatmap_description))
             f.write(heatmap_description)
+            f.write("\n")
+        if reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
+            f.write("Example profiling:\n")
+            f.write(EXAMPLE_QUESTION)
+            f.write("\n")
+            f.write("Example answer:\n")
+            f.write(EXAMPLE_ANSWER)
             f.write("\n")
         f.write("\n")
         f.write(QUESTION)
@@ -302,8 +381,11 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
             llm_response = LLM_prediction_no_profile(image_path, reasoning)
         elif reasoning == ReasoningOption.HEATMAP_FIRST:
             llm_response = LLM_prediction_heatmap_first(user, image_path, profiling, heatmap_description, QUESTION)
+        elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
+            llm_response = LLM_prediction_chain_of_thought(user, image_path_example, image_path, profiling, EXAMPLE_QUESTION, QUESTION, EXAMPLE_ANSWER) 
         else:
             llm_response = LLM_prediction_profile_first(user, image_path, profiling, QUESTION)
+            
         
         reasoning, answer = process_llm_output(llm_response)
         
@@ -328,17 +410,20 @@ def profile_users(profiles:[UserProfile], profiling:bool):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, example_q: int):
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, with_example: bool, example_q: int, with_average: bool, fixed_average: bool):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
             question_paths ([(int, str)]) : IDs of questions with associated filepaths for images
             profiles ([UserProfile]) : objects representing the users to simulate
             profiling (bool) : whether to use profiling
-            heatmap_descriptions (dict[int, str]) : pre-generated descriptions of the heatmaps
+            with_accuracy (bool) : whether to include the number of correctly answered questions by human
+            with_example (bool) : whether to show a question as example
+            example_q (int) : number of agreement question to show as example
+            with_average (bool) : whether to include the average agreement score of human
     """
     # find (previous) results    
-    out_path = agree_output_path(with_accuracy, "results")
+    out_path = agree_output_path(with_accuracy, with_average, fixed_average, with_example, "results")
     results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
@@ -348,6 +433,9 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
 
         user_id = user.user_background['id']
         number_correct = count_correct_human_answers(user)
+        average_score = average_agreement_score(user)
+        if fixed_average:
+            average_score = 4
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
@@ -361,7 +449,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question] not in options:
                 try:
-                    results_df.at[user_id, question] = single_agreement(user, q, example_q, example_a, profiling, with_accuracy, number_correct)
+                    results_df.at[user_id, question] = single_agreement(user, q, with_example, example_q, example_a, profiling, with_accuracy, number_correct, with_average, fixed_average, average_score)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -370,7 +458,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
         save_result_df(results_df, out_path)
 
     # saving the result dataframe again
-    save_result_df(results_df, agree_output_path(with_accuracy, "results"))
+    save_result_df(results_df, agree_output_path(with_accuracy, with_average, fixed_average, with_example, "results"))
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling:bool, reasoning:ReasoningOption, heatmap_descriptions:dict[int, str]=None):
@@ -411,6 +499,8 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
                 try:
                     if reasoning==ReasoningOption.HEATMAP_FIRST:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index-1]['heatmap_description'])
+                    elif reasoning==ReasoningOption.CHAIN_OF_THOUGHT:
+                        results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, image_path_example=EXAMPLE_IMAGE_PATH)
                     else:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning)
                 except Exception as e:
@@ -475,9 +565,9 @@ def main():
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:
-        simulate_agreements(args.questions, profiles, args.profiling, args.with_accuracy, args.example)
+        agreement_questions = set(args.questions).difference(set([args.example])) if args.with_example else args.questions
+        simulate_agreements(agreement_questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average, args.fixed_average)
 
 
 if __name__ == '__main__':
-    # generate_heatmap_descriptions(list(range(1,21)))
     sys.exit(main())

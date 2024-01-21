@@ -12,13 +12,25 @@ REASON_OPTIONS = {
     ReasoningOption.NONE : "out/no_reason/",
     ReasoningOption.HEATMAP_FIRST : "out/reason_heatmap_first/",
     ReasoningOption.PROFILE_FIRST : "out/reason_profile_first/",
+    ReasoningOption.CHAIN_OF_THOUGHT : "out/reason_chain_of_thought/",
 }
 
-AGREEMENT_PREFIXES = {
+ACCURACY_PREFIXES = {
     # boolean: with accuracy
-    True : "out/agreement/with_accuracy_",
-    False : "out/agreement/without_accuracy_"
+    True : "with_accuracy/",
+    False : "without_accuracy/"
 }
+
+AVERAGE_PREFIXES = {
+    True : "with_average/",
+    False: "without_average/"
+}
+
+EXAMPLE_PREFIXES = {
+    True: "with_example/",
+    False: "without_example/"
+}
+
 
 FILE_SUFFIXES = {
     "protocol" : "protocol.txt",
@@ -42,7 +54,7 @@ def bird_output_path(reasoning:ReasoningOption, profiling:bool, out_type:str="pr
     return REASON_OPTIONS[reasoning] + ("profile/" if profiling else "no_profile/") + FILE_SUFFIXES[out_type] 
 
 
-def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
+def agree_output_path(with_accuracy: bool, with_average: bool, fixed_average: bool, with_example: bool, out_type:str="protocol") -> str:
     """Returns path to output file.
     
     Args:
@@ -52,11 +64,12 @@ def agree_output_path(with_accuracy: bool, out_type:str="protocol") -> str:
     Returns:
         (str) : file path
     """
+    
     output_types = ["protocol", "results"] 
     if out_type not in output_types: 
         raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
 
-    return AGREEMENT_PREFIXES[with_accuracy] + FILE_SUFFIXES[out_type]
+    return "out/agreement/" + ACCURACY_PREFIXES[with_accuracy] + EXAMPLE_PREFIXES[with_example] + ("fixed_average/" if fixed_average else AVERAGE_PREFIXES[with_average]) + FILE_SUFFIXES[out_type]
 
 
 # ----------------------------------------------- During interview ---------------------------------------------------------------
@@ -101,6 +114,8 @@ def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
         df = pd.read_csv(path_to_csv)
         df = df.sample(n)
     
+    #df = pd.read_csv(path_to_csv)
+    #df = df.iloc[[44]]
     df['id'] = df.index
     df = df.rename(columns={"Q_8" : "Q_4"})
 

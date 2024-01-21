@@ -62,6 +62,7 @@ def select_questions(n=1, method='balanced') -> [int]:
 
     return question_IDs
 
+
 def get_true_answers(path_to_csv:str) -> dict[int, str]:
     """Reads the correct answers to the specified questions from given file.
 
@@ -97,7 +98,7 @@ def count_correct_LLM_answers(user_id : int, variation=int) -> int:
 
 
 def count_correct_human_answers(user: UserProfile) -> int:
-    """For a specific user, returns the number of correctly answered questions.
+    """For a specific user, returns the number of correctly answered questions by the human.
     Missing answers (NAs) will be counted as wrong answers.
     
     Args:
@@ -110,3 +111,29 @@ def count_correct_human_answers(user: UserProfile) -> int:
     true_answers = get_true_answers("prediction_questions.csv")
     correct_answers = [user.human_predictions[i] == true_answers[i] for i in range(1, 21)].count(True)
     return correct_answers
+
+
+def average_agreement_score(user: UserProfile) -> float:
+    """For a specific user, returns the average score given to the agreement questions by the human (i.e. a score representing the overall subjective understanding).
+    
+    Args:
+        user (UserProfile) : the user
+
+    Returns:
+        (float) : the average score
+    """
+    number_questions = 6
+    score_sum = 0
+
+    for i in range(6):
+        try:
+            score = int(user.human_agreements[i+1])
+            if i == 4:
+                score = 8 - score
+        except ValueError:
+            score = 0
+            number_questions -= 1
+        
+        score_sum += score
+    
+    return 0 if number_questions == 0 else round(score_sum / number_questions)

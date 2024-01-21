@@ -60,14 +60,19 @@ For example, to simulate questions 1, 7, and 13, run
 ```
 
 3. Similarly, one can choose to simulate the agreement questions with the `agreement` option. There are multiple additional options for this:
-- `--questions`: which of the agreement questions to simulate (by default: questions 2, 3, 4, 5, 6)
+- `--questions`: which of the agreement questions to simulate (by default: all questions, if `--with_example` is set, without the example question)
 - `--example`: which question to show the LLM as an example (by default: the first one)
-To set whether to include the number of questions that the user answered correctly in the prompt, use either `--with_accuracy` or `--without_accuracy`. If neither option is given, simulations will be run with accuracy.
+- `--with_accuracy` or `--without_accuracy`: to set whether to include the number of questions that the user answered correctly in the prompt (by default: with accuracy)
+- `--with_average` or `--without_average`: whether to include the average human score for the agreement questions as profiling (by default: without average)
+- `--fixed_average` or `--user_average`: whether to include the average human score for the agreement questions as profiling or use a fixed value (4) (by default: user average)
+- `--with_example` or `--without_example` : whether to include a question as example (by default: with example) - note that if `--without_example` is set, any arguments to the previous `--example` option will be ignored
 
 Example:
 ```
     python v2_interview.py agreement --without_accuracy --questions 2 3 4
 ```
+
+*NOTE: the questions that are actually simulated are computed as the questions in the `--questions` argument minus the `--example` question.*
 
 ## Outputs
 

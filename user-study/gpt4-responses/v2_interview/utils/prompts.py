@@ -82,7 +82,7 @@ USER_QUESTION_2 = "Based on the descriptions and the areas highlighted by the he
     "- Parakeet Auklet\n"\
     "- Rhinoceros Auklet\n"\
     "For each description explain why it could be this bird species or why not. Conclude your answer by "\
-    "only stating the chosenn option in the last line of your response. Keep the token limit low."
+    "only stating the chosenn option in the last line of your response. "#"Keep the token limit low."
 
 
 # ============================================= USER V3 ==============================================
@@ -111,7 +111,7 @@ USER_QUESTION_3 = "Based on the descriptions and the areas highlighted by the he
     "- Rhinoceros Auklet\n"\
     "First, describe all areas of the bird that are highlighted in the heatmap. Finally, for each bird "\
     "description given, explain why it might or might not be that species of bird. Conclude your answer "\
-    "by stating only the selected option in the last line of your answer. Keep the number of tokens low."
+    "by stating only the selected option in the last line of your answer. " # "Keep the number of tokens low."
 
 
 # ============================================= USER V4 ==============================================
@@ -144,7 +144,47 @@ USER_QUESTION_4 = "Based on the descriptions and the areas highlighted by the he
     "For each bird description, explain why it might or might not be that species of bird based on your heatmap description. "\
     "Conclude your answer by stating only the selected option in the last line of your answer."
 
-TOKENS_LOW = "Keep the number of tokens low. "
+TOKENS_LOW = "" #"Keep the number of tokens low. "
+
+
+# ============================================= USER V4 ==============================================
+
+USER_EXAMPLE_PROFILING_5 = "You believe the classification model distinguishes between the four bird species based on the following features if they are highlighted in red:\n"\
+    "- Rhinoceros Auklets: eye, head\n"\
+    "- Least Auklets: mottled belly, head\n"\
+    "- Parakeet Auklets: white belly, head, beak, eye with white stripe behind\n"\
+    "- Crested Auklets: head, beak with long feather, eye with white stripe behind\n"
+
+USER_EXAMPLE_ANSWER_5 = "Rhinoceros Auklet:\n"\
+    "For Rhinoceros Auklets, the heatmap should primarily focus on either the head or the eye. The provided image emphasizes the head, "\
+    "and consequently, the eye is also highlighted. Although there is some attention to the abdomen, the heatmap intensity in this region "\
+    "is not strong. As a result, the classification of the image as Rhinoceros Auklet is plausible.\n\n"\
+    "Least Auklet:\n"\
+    "The classification of the image as a Least Auklet is contingent upon the highlighting of the mottled belly. Additionally, a highlighted "\
+    "head would signify this species. In the provided image, the heatmap accentuates the head and portions of the belly. However, the belly "\
+    "lacks mottling, and the heatmap intensity in this area is not significant. Therefore, it is unlikely that the image is classified as a "\
+    "Least Auklet.\n\n"\
+    "Parakeet Auklet:\n"\
+    "If the heatmap highlights a white belly, the head, the beak, or the eye with a white stripe behind it, the image could represent a "\
+    "Parakeet Auklet. Indeed, all mentioned areas are at least partially highlighted, and the eye features a white stripe behind it. Nevertheless, "\
+    "akin to the Least Auklet, the heatmap intensity in the belly region is weak, and the belly color is gray rather than white. While the image "\
+    "could be classified as a Parakeet Auklet, it is not a perfect match.\n\n"\
+    "Crested Auklet:\n"\
+    "Crested Auklets can be identified if the heatmap emphasizes the head, the beak with an extended feather, or the eye with a white stripe behind "\
+    "it. The heatmap predominantly centers on the bird's head, encompassing the beak adorned with a large feather. Additionally, the eye is "\
+    "accentuated by the heatmap and has a white stripe behind it which runs along the head. Although the belly receives some highlighting in the "\
+    "heatmap, which is not indicative of Crested Auklets, the intensity in this area is not prominent. Consequently, the image is highly likely to be "\
+    "classified as a Crested Auklet.\n\n"\
+    "Answer: Crested Auklet"
+
+USER_PROFILING_5 = "You believe the classification model distinguishes between the four bird species based on the following features if they are highlighted in red:\n"\
+    "- Rhinoceros Auklets: HEATMAP_FEATURES_RA\n"\
+    "- Least Auklets: HEATMAP_FEATURES_LA\n"\
+    "- Parakeet Auklets: HEATMAP_FEATURES_PA\n"\
+    "- Crested Auklets: HEATMAP_FEATURES_CA\n"
+
+USER_QUESTION_5 = "Which bird species do you think was the image classified as?"
+
 
 # ========================================== USER AGREEMENT ==========================================
 
@@ -268,6 +308,7 @@ class ReasoningOption(Enum):
     NONE = "none"
     PROFILE_FIRST = "profile_first"
     HEATMAP_FIRST = "heatmap_first"
+    CHAIN_OF_THOUGHT = "chain_of_thought"
 
 USER_PROMPTS = {
     # tuple: reasoning, prompting part
@@ -280,7 +321,11 @@ USER_PROMPTS = {
     (ReasoningOption.HEATMAP_FIRST, "intro") : USER_INTRO_4,
     (ReasoningOption.HEATMAP_FIRST, "profiling") : USER_PROFILING_4,
     (ReasoningOption.HEATMAP_FIRST, "question") : USER_QUESTION_4,
-    (ReasoningOption.HEATMAP_FIRST, "heatmap") : USER_HEATMAP_4
+    (ReasoningOption.HEATMAP_FIRST, "heatmap") : USER_HEATMAP_4,
+    (ReasoningOption.CHAIN_OF_THOUGHT, "profiling") : USER_PROFILING_5,
+    (ReasoningOption.CHAIN_OF_THOUGHT, "question") : USER_QUESTION_5,
+    (ReasoningOption.CHAIN_OF_THOUGHT, "example_profiling") : USER_EXAMPLE_PROFILING_5,
+    (ReasoningOption.CHAIN_OF_THOUGHT, "example_answer") : USER_EXAMPLE_ANSWER_5
 }
 
 USER_INSTRUCTS = {
@@ -288,6 +333,7 @@ USER_INSTRUCTS = {
     ReasoningOption.PROFILE_FIRST : USER_INSTRUCT_PROFILE_FIRST,
     ReasoningOption.HEATMAP_FIRST : USER_INSTRUCT_HEATMAP_FIRST
 }
+EXAMPLE_IMAGE_PATH = "11-Crested.png"
 
 AGREEMENT_PROMPTS = {
     "intro" : USER_AGREEMENT_INTRO,

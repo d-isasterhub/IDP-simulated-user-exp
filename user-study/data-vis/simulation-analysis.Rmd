@@ -1,0 +1,501 @@
+---
+title: "simulation-analysis"
+author: "Isabel Schorr"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r libraries, include = FALSE}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+
+## Utility Functions
+
+#### Read csv files
+
+These functions read and adapt the existing csv files for human answers,
+LLM answers, and the ground truth for classification answers.
+
+```{r Data Table}
+get_human_dt <- function() {
+  human_dt <- fread(
+    "../data-exploration-cleanup/cleaned_simulatedusers.csv",
+  )[,-1]
+  human_dt[, id := 0:(nrow(human_dt)-1)]
+  
+  return(human_dt)
+}
+
+get_llm_dt <-function(path) {
+  llm_dt <- fread(path)
+  
+  return(llm_dt)
+}
+
+get_truth_dt <- function() {
+  truth_dt <- fread("../gpt4-responses/v2_interview/prediction_questions.csv") %>%
+    .[, Question := paste0("Q", ID)] %>%
+    .[, mget(c("Question", "correct_answer"))]
+  colnames(truth_dt) <- c("Question", "CorrectAnswer")
+  
+  return(truth_dt)
+}
+```
+
+
+#### Get modified data tables (Classification)
+
+get_tidy_dt: Takes questions (e.g., `c("Q1", "Q2")`) and the data tables from
+`get_human_dt` and `get_llm_dt`. Use only for Classification questions. Creates 
+a tidy data table in the form of
+
+id | User  | Question | Prediction
+---|-------|----------|---------------
+0  | Human | Q1       | Crested Auklet
+1  | Human | Q1       | Crested Auklet
+...| ...   | ...      | ...
+0  | LLM   | Q1       | Crested Auklet
+...| ...   | ...      | ...
+
+
+get_human_resemblance_dt: Takes questions (e.g., `c("Q1", "Q2")`) and the 
+data tables from `get_human_dt` and `get_llm_dt`. Calculates how often the LLM 
+responded with the same classification guess as its human counterpart. Creates 
+a data table in the form of
+
+Question | Accuracy
+---------|---------
+Q1       | 0.90
+Q10      | 0.34
+...      | ...
+
+
+get_accuracy_dt: Takes questions (e.g., `c("Q1", "Q2")`), the data tables from
+`get_human_dt` and `get_llm_dt`, and the data table from `get_truth_dt`.
+Calculates how accurate both human and llm were in terms of the correct 
+classification answer. Creates a data table in the form of
+
+Question | Human | LLM
+---------|-------|-----
+Q1       | 0.90  | 1.00
+Q10      | 0.82  | 0.32
+...      | ...   | ...
+
+
+```{r Tidy Data Table Classification}
+get_tidy_dt <- function(questions, dt_h, dt_llm) {
+  # Get human data table: id | Human_Qi | ... | Human_Qj
+  human_cols <- paste0("Human_", questions)
+  dt_h <- dt_h %>% rename_at(questions, ~ human_cols) %>%
+    .[, mget(c("id", human_cols))]
+  
+  # Get LLM data table: id | LLM_Qi | ... | LLM_Qj
+  llm_cols <- paste0("LLM_", questions)
+  dt_llm <- dt_llm[,mget(c("id", llm_cols))]
+  
+  # Merge data tables: id | User | Question | Prediction
+  # Example: 0 | Human | Q1 | Crested Auklet
+  dt <- merge(dt_h, dt_llm, by = "id")
+  dt %>% melt(
+    id.vars = "id",
+    variable.name = "Question",
+    "value.name" = "Prediction"
+  ) %>% separate(
+    col = "Question",
+    into = c("User", "Question"),
+    remove = TRUE
+  ) %>% as.data.table()
+}
+
+get_human_resemblance_dt <- function(questions, dt_h, dt_llm){
+  dt <- get_tidy_dt(questions, dt_h, dt_llm) %>% spread(
+    User, Prediction
+  ) %>% as.data.table() 
+  dt[, Correct := 1*(Human == LLM)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("Question")]
+}
+
+get_accuracy_dt <- function(questions, dt_h, dt_llm, correct){
+  dt <- merge(
+    get_tidy_dt(questions, dt_h, dt_llm),
+    correct,
+    by = "Question"
+  ) %>% as.data.table()
+  dt[, Correct := 1*(Prediction == CorrectAnswer)]
+  dt[, .(Accuracy = sum(Correct, na.rm = T) / .N), 
+     by = c("User", "Question")] %>% spread(
+       User, Accuracy
+     ) %>% as.data.table()
+}
+
+get_agreement_dt <- function(questions, dt_h, dt_llm, with_example) {
+  if (with_example) {
+    human_agreement <- c("Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+  } else {
+    human_agreement <- c("Q_1", "Q_2", "Q_3", "Q_8", "Q_5", "Q_6")
+  }
+  human_agreement_dt <- dt_h[, mget(c("id", human_agreement))]
+  if (with_example) {
+    agreement <- paste0("A", 2:6)
+  } else {
+    agreement <- paste0("A", 1:6)
+  }
+  colnames(human_agreement_dt) <- c("id", agreement)
+  
+  tidy <- get_tidy_dt(questions, human_agreement_dt, dt_llm) %>% dcast(... ~ User)
+  tidy[, diff := Human - LLM]
+  return(tidy)
+}
+```
+
+
+#### Plotting
+
+These plots are meant to visualize the results of `get_human_resemblance_dt` 
+and `get_accuracy_dt`, as well as `get_agreement_dt`.
+
+```{r Plotting}
+get_human_resemblance_plot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Accuracy = sum(Accuracy)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy)) +
+    geom_col() +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title) +
+    ylim(0,1)
+  print(p)
+  complete_dt
+}
+
+get_accuracy_plot <- function(accuracy_dt, questions, title) {
+  relevant_dt <- accuracy_dt[Question %in% questions]
+  all_qestions <- relevant_dt[
+    , .(Human = sum(Human)/.N, LLM = sum(LLM)/.N)
+  ] %>% .[, Question := "All"]
+  
+  complete_dt <- rbind(all_qestions, relevant_dt)
+  p <- complete_dt %>%
+    melt(
+      id.vars = NULL,
+      variable.name = "User",
+      value.name = "Accuracy"
+    ) %>% 
+    .[, Question := factor(Question, levels = c("All", questions))] %>%
+    ggplot(aes(Question, Accuracy, fill=User)) +
+    geom_col(position="dodge") +
+    geom_text(aes(label=Accuracy),
+              position=position_dodge(width=0.9), vjust=-0.25, size=2) +
+    theme(axis.text.x = element_text(size = 8)) +
+    ggtitle(title)
+  print(p)
+  complete_dt
+}
+
+get_agreement_scatterplot <- function(dt, title) {
+  dt %>% ggplot(aes(Human, LLM)) +
+    geom_point() +
+    geom_jitter() +
+    ggtitle(title)
+}
+
+get_barplot <- function(dt, column, title) {
+  plot <- dt %>% ggplot(aes(get(column))) +
+    geom_bar() +
+    xlab(column) +
+    geom_vline(aes(xintercept = mean(get(column))), colour = 'red') +
+    xlim(-6,6) +
+    ggtitle(title)
+  plot
+}
+```
+
+
+## Visualization of classification answer simulation results
+
+#### Settings
+
+Please adjust the settings here as needed for the desired plot.
+
+```{r Settings Classification}
+###############################################################################
+# Change settings HERE
+# Options: no_reason, reason_heatmap_first, reason_profile_first,
+# reason_chain_of_thought
+reasoning <- "reason_chain_of_thought"
+# Options: no_profile, profile
+profiling <- "profile"
+# Classification questions to be visualized
+questions <- paste0("Q", 1:20)
+##############################################################################
+
+path <- paste(
+  "../gpt4-responses/v2_interview/out/",
+  reasoning,
+  "/",
+  profiling,
+  "/results.csv",
+  sep = ''
+)
+```
+
+
+#### Data tables
+
+```{r Data Tables for Plotting}
+human_dt <- get_human_dt()
+llm_dt <- get_llm_dt(path)
+truth_dt <- get_truth_dt()
+
+resemblance_dt <- get_human_resemblance_dt(questions, human_dt, llm_dt)
+accuracy_dt <- get_accuracy_dt(questions, human_dt, llm_dt, truth_dt)
+```
+
+
+#### Human resemblance
+
+```{r Classification Resemblance Plot}
+reason <- paste(
+  "Reasoning:",
+  reasoning
+)
+
+profile <- paste(
+  "Profiling:",
+  profiling
+)
+
+title <- paste(
+  "How Accurately Do LLM Answers Resemble Human Answers?",
+  reason,
+  profile,
+  sep = "\n"
+)
+get_human_resemblance_plot(resemblance_dt, questions, title)
+```
+
+
+#### Accuracy
+
+```{r Classification Accuracy Plot}
+reason <- paste(
+  "Reasoning:",
+  reasoning
+)
+
+profile <- paste(
+  "Profiling:",
+  profiling
+)
+
+title <- paste(
+  "How Accurate Do LLMs and Humans Guess the Classification?",
+  reason,
+  profile,
+  sep = "\n"
+)
+get_accuracy_plot(accuracy_dt, questions, title)
+```
+
+
+## Visualization of classification answer simulation results
+
+#### Settings
+
+```{r Agreement}
+###############################################################################
+# Change settings HERE
+# Options: with, without
+accuracy <- "without"
+example <- "with"
+# Options: with, without, fixed
+average <- "fixed"
+# Agreement questions to be visualized
+if (example == "with"){
+  questions <- paste0("A", c("2", "3", "4", "5", "6"))
+} else {
+  questions <- paste0("A", c("1", "2", "3", "4", "5", "6"))
+}
+##############################################################################
+
+path <- paste(
+  "../gpt4-responses/v2_interview/out/agreement/",
+  accuracy,
+  "_accuracy/",
+  example,
+  "_example/",
+  average,
+  "_average/",
+  "results.csv",
+  sep = ''
+)
+```
+
+#### Data Tables
+
+```{r Agreement Data Table}
+human_dt <- get_human_dt()
+llm_dt <- get_llm_dt(path)
+agreement_dt <- get_agreement_dt(questions, human_dt, llm_dt, example =="with")
+mean_agreement_dt <- agreement_dt %>% group_by(id) %>%
+  summarise_at(vars(-Question), funs(mean(., na.rm=TRUE)))
+```
+
+#### Human resemblance
+
+```{r Agreement Plots}
+agreement_questions <- paste(
+  questions,
+  collapse = ", "
+)
+
+prompting <- paste(
+  "Prompt",
+  accuracy,
+  "accuracy,",
+  average,
+  "average,",
+  example,
+  "example of classification guesses."
+)
+
+correlation <- paste(
+  "Spearman correlation:",
+  as.character(
+    round(cor(agreement_dt$Human, agreement_dt$LLM, method = "spearman"), 2)
+  )
+)
+
+agreement_main <- paste(
+  "How Similar Are Human and LLM Agreement Scores for questions \n",
+  agreement_questions,
+  "?",
+  sep = ""
+)
+
+agreement_title <- paste(
+  agreement_main,
+  prompting,
+  correlation,
+  sep = "\n"
+)
+
+get_agreement_scatterplot(agreement_dt, agreement_title)
+get_barplot(agreement_dt, "diff", agreement_title)
+
+correlation <- paste(
+  "Spearman correlation:",
+  as.character(
+    round(cor(mean_agreement_dt$Human, mean_agreement_dt$LLM, method = "spearman"), 2)
+  )
+)
+
+mean_agreement_main <- paste(
+  "How Similar Are Mean Human and LLM Agreement Scores for questions \n",
+  agreement_questions,
+  "?",
+  sep = ""
+)
+
+mean_agreement_title <- paste(
+  mean_agreement_main,
+  prompting,
+  correlation,
+  sep = "\n"
+)
+
+get_agreement_scatterplot(mean_agreement_dt, mean_agreement_title)
+get_barplot(mean_agreement_dt, "diff", mean_agreement_title)
+```
+
+
+#### Statistical Tests
+
+Spearman:
+"The Spearman rank-order correlation coefficient (Spearman’s correlation, for 
+short) is a nonparametric measure of the strength and direction of association 
+that exists between two variables measured on at least an ordinal scale." 
+[Source](https://statistics.laerd.com/spss-tutorials/spearmans-rank-order-correlation-using-spss-statistics.php#:~:text=The%20Spearman%20rank%2Dorder%20correlation,letter%20%CF%81%2C%20pronounced%20rho).)
+
+```{r Spearman}
+cor.test(agreement_dt$Human, agreement_dt$LLM, method = "spearman")
+cor.test(mean_agreement_dt$Human, mean_agreement_dt$LLM, method = "spearman")
+```
+
+Wilcoxon signed ranks test:
+- Non-parametric equivalent to paired t-test
+- Used when two measurements of the same dependent variable are taken at 
+  different time points
+- Wilcoxon test can be used to compare individual ordinal questions such as 
+  those asking for opinions on understanding the condition
+- Effect size (Cohen's classification): 0.1 (small effect), 
+  0.3 (moderate effect) and 0.5 and above (large effect).
+
+```{r Wilcoxon}
+wilcoxon <- wilcox.test(
+  agreement_dt$Human, 
+  agreement_dt$LLM, 
+  paired = T, 
+  conf.int = T,
+  exact = T,
+  alternative = "two.sided"
+)
+
+Zstat <- qnorm(wilcoxon$p.value/2)
+
+effect_size <- abs(Zstat)/sqrt(20)
+
+wilcoxon
+effect_size
+
+wilcoxon <- wilcox.test(
+  mean_agreement_dt$Human, 
+  mean_agreement_dt$LLM, 
+  paired = T, 
+  conf.int = T,
+  exact = T,
+  alternative = "two.sided"
+)
+
+Zstat <- qnorm(wilcoxon$p.value/2)
+
+effect_size <- abs(Zstat)/sqrt(20)
+
+wilcoxon
+effect_size
+```
+
+
+T-test:
+For comparison. However, the data is not continuous and the normality 
+assumption not met. Therefore, it is appropriate to use the nonparametric 
+alternative, which is the Wilcoxon signed ranks test.
+
+```{r T Test}
+t.test(
+  agreement_dt$Human, 
+  agreement_dt$LLM, 
+  paired = TRUE, 
+  alternative = "two.sided"
+)
+
+t.test(
+  mean_agreement_dt$Human, 
+  mean_agreement_dt$LLM, 
+  paired = TRUE, 
+  alternative = "two.sided"
+)
+```
