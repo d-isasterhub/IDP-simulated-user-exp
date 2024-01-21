@@ -512,11 +512,13 @@ def main():
         question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
 
         reasoning = ReasoningOption[args.reasoning.upper()]
+        print(reasoning)
 
         if reasoning not in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
             simulate_interviews(question_paths, profiles, args.profiling, reasoning)
         else:
-            generate_heatmap_descriptions(question_IDs)
+            if reasoning == ReasoningOption.HEATMAP_FIRST:
+                generate_heatmap_descriptions(question_IDs)
             heatmap_descriptions = get_heatmap_descriptions(reasoning == ReasoningOption.GOLD_HEATMAP_FIRST)
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
