@@ -54,7 +54,7 @@ def bird_output_path(reasoning:ReasoningOption, profiling:bool, out_type:str="pr
     return REASON_OPTIONS[reasoning] + ("profile/" if profiling else "no_profile/") + FILE_SUFFIXES[out_type] 
 
 
-def agree_output_path(with_accuracy: bool, with_average: bool, with_example: bool, out_type:str="protocol") -> str:
+def agree_output_path(with_accuracy: bool, with_average: bool, fixed_average: bool, with_example: bool, out_type:str="protocol") -> str:
     """Returns path to output file.
     
     Args:
@@ -64,11 +64,12 @@ def agree_output_path(with_accuracy: bool, with_average: bool, with_example: boo
     Returns:
         (str) : file path
     """
+    
     output_types = ["protocol", "results"] 
     if out_type not in output_types: 
         raise ValueError("Invalid output file type. Expected one of: %s" % output_types)
 
-    return "out/agreement/" + ACCURACY_PREFIXES[with_accuracy] + EXAMPLE_PREFIXES[with_example] + AVERAGE_PREFIXES[with_average] + FILE_SUFFIXES[out_type]
+    return "out/agreement/" + ACCURACY_PREFIXES[with_accuracy] + EXAMPLE_PREFIXES[with_example] + ("fixed_average/" if fixed_average else AVERAGE_PREFIXES[with_average]) + FILE_SUFFIXES[out_type]
 
 
 # ----------------------------------------------- During interview ---------------------------------------------------------------

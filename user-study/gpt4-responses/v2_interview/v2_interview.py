@@ -104,6 +104,11 @@ def initialize_parser():
     average_parser.add_argument('--with_average', dest='with_average', action='store_true')
     average_parser.add_argument('--without_average', dest='with_average', action='store_false')
     agreement_parser.set_defaults(with_average=False)
+
+    average_parser = agreement_parser.add_mutually_exclusive_group(required=False)
+    average_parser.add_argument('--fixed_average', dest='fixed_average', action='store_true')
+    average_parser.add_argument('--user_average', dest='fixed_average', action='store_false')
+    agreement_parser.set_defaults(fixed_average=False)
     
     return parser
 
@@ -221,7 +226,7 @@ def LLM_agreement(user: UserProfile, profiling: bool, introprofile_prompt: str, 
     return actual_response
 
 
-def single_agreement(user : UserProfile, actual_q: int, with_example: bool, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int, with_average: bool, average_score: int) -> str:
+def single_agreement(user : UserProfile, actual_q: int, with_example: bool, example_q: int, example_a: int, profiling : bool, with_accuracy: bool, number_correct: int, with_average: bool, fixed_average:bool, average_score: int) -> str:
     """Simulates an interview by profiling a user and asking an agreement study question. 
         Prompts and full response including reasoning are written to "interview_protocol.txt".
 
@@ -256,7 +261,7 @@ def single_agreement(user : UserProfile, actual_q: int, with_example: bool, exam
         AGREEMENT_QUESTIONS[actual_q] +\
         AGREEMENT_PROMPTS["scale"] + AGREEMENT_PROMPTS["answer"]
 
-    with open(agree_output_path(with_accuracy, with_average, with_example, "protocol"), mode="a+") as f:
+    with open(agree_output_path(with_accuracy, with_average, fixed_average, with_example, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering agreement question {i}:\n".format(u=user.user_background['id'], i=actual_q))
         if profiling:
             f.write(user.profiling_prompt)
@@ -364,7 +369,7 @@ def profile_users(profiles:[UserProfile], profiling:bool):
             p.personalize_prompt(SYSTEM, profiling=True)
 
 
-def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, with_example: bool, example_q: int, with_average: bool):
+def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool, with_accuracy: bool, with_example: bool, example_q: int, with_average: bool, fixed_average: bool):
     """Simulates interview for each user-question combination and saves results to output file.
 
         Args:
@@ -377,7 +382,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             with_average (bool) : whether to include the average agreement score of human
     """
     # find (previous) results    
-    out_path = agree_output_path(with_accuracy, with_average, with_example, "results")
+    out_path = agree_output_path(with_accuracy, with_average, fixed_average, with_example, "results")
     results_df = pd.read_csv(out_path, index_col = "id", keep_default_na=False)
     
     options = range(1, 8)
@@ -388,6 +393,8 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
         user_id = user.user_background['id']
         number_correct = count_correct_human_answers(user)
         average_score = average_agreement_score(user)
+        if fixed_average:
+            average_score = 4
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
@@ -401,7 +408,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question] not in options:
                 try:
-                    results_df.at[user_id, question] = single_agreement(user, q, with_example, example_q, example_a, profiling, with_accuracy, number_correct, with_average, average_score)
+                    results_df.at[user_id, question] = single_agreement(user, q, with_example, example_q, example_a, profiling, with_accuracy, number_correct, with_average, fixed_average, average_score)
                 except Exception as e:
                     # TODO: this does not work
                     print("Response generation failed:\n")
@@ -410,7 +417,7 @@ def simulate_agreements(questions:[int], profiles:[UserProfile], profiling:bool,
         save_result_df(results_df, out_path)
 
     # saving the result dataframe again
-    save_result_df(results_df, agree_output_path(with_accuracy, with_average, with_example, "results"))
+    save_result_df(results_df, agree_output_path(with_accuracy, with_average, fixed_average, with_example, "results"))
 
 
 def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], profiling:bool, reasoning:ReasoningOption, heatmap_descriptions:dict[int, str]=None):
@@ -515,7 +522,7 @@ def main():
 
     else:
         agreement_questions = set(args.questions).difference(set([args.example])) if args.with_example else args.questions
-        simulate_agreements(agreement_questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average)
+        simulate_agreements(agreement_questions, profiles, args.profiling, args.with_accuracy, args.with_example, args.example, args.with_average, args.fixed_average)
 
 
 if __name__ == '__main__':
