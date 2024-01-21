@@ -321,7 +321,8 @@ get_accuracy_plot(accuracy_dt, questions, title)
 # Options: with, without
 accuracy <- "without"
 example <- "with"
-average <- "without"
+# Options: with, without, fixed
+average <- "fixed"
 # Agreement questions to be visualized
 if (example == "with"){
   questions <- paste0("A", c("2", "3", "4", "5", "6"))
