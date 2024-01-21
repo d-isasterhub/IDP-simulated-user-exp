@@ -233,8 +233,9 @@ Please adjust the settings here as needed for the desired plot.
 ```{r Settings Classification}
 ###############################################################################
 # Change settings HERE
-# Options: no_reason, reason_heatmap_first, reason_profile_first
-reasoning <- "no_reason"
+# Options: no_reason, reason_heatmap_first, reason_profile_first,
+# reason_chain_of_thought
+reasoning <- "reason_chain_of_thought"
 # Options: no_profile, profile
 profiling <- "profile"
 # Classification questions to be visualized
@@ -320,7 +321,7 @@ get_accuracy_plot(accuracy_dt, questions, title)
 # Options: with, without
 accuracy <- "without"
 example <- "with"
-average <- "with"
+average <- "without"
 # Agreement questions to be visualized
 if (example == "with"){
   questions <- paste0("A", c("2", "3", "4", "5", "6"))
