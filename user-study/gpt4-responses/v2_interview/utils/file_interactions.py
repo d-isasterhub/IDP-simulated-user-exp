@@ -12,6 +12,7 @@ REASON_OPTIONS = {
     ReasoningOption.NONE : "out/no_reason/",
     ReasoningOption.HEATMAP_FIRST : "out/reason_heatmap_first/",
     ReasoningOption.PROFILE_FIRST : "out/reason_profile_first/",
+    ReasoningOption.CHAIN_OF_THOUGHT : "out/reason_chain_of_thought/",
 }
 
 ACCURACY_PREFIXES = {
@@ -112,6 +113,8 @@ def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
         df = pd.read_csv(path_to_csv)
         df = df.sample(n)
     
+    #df = pd.read_csv(path_to_csv)
+    #df = df.iloc[[44]]
     df['id'] = df.index
     df = df.rename(columns={"Q_8" : "Q_4"})
 
