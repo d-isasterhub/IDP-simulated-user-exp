@@ -11,6 +11,7 @@ from .prompts import (
 REASON_OPTIONS = {
     ReasoningOption.NONE : "out/no_reason/",
     ReasoningOption.HEATMAP_FIRST : "out/reason_heatmap_first/",
+    ReasoningOption.GOLD_HEATMAP_FIRST : "out/reason_gold_heatmap_first/",
     ReasoningOption.PROFILE_FIRST : "out/reason_profile_first/",
     ReasoningOption.CHAIN_OF_THOUGHT : "out/reason_chain_of_thought/",
 }
@@ -121,11 +122,14 @@ def read_human_data(path_to_csv:str, n=5, selection='first') -> pd.DataFrame:
 
     return df
 
-def get_heatmap_descriptions() -> dict[int, str]:
+def get_heatmap_descriptions(gold_standard:bool=False) -> dict[int, str]:
     """Reads all available heatmap descriptions from csv files.
+
+    Args:
+        gold_standard (bool) : whether to use gold standard heatmap descriptions (alternative: LLM generated)
     
     Returns:
         ([dict[int, str]]) : a dict containing all heatmap descriptions, keys are question numbers
     """
-    heatmaps_df = pd.read_csv("heatmap_descriptions.csv")
+    heatmaps_df = pd.read_csv(("gold_" if gold_standard else "") + "heatmap_descriptions.csv")
     return heatmaps_df.to_dict('records')

@@ -270,6 +270,7 @@ class ReasoningOption(Enum):
     NONE = "none"
     PROFILE_FIRST = "profile_first"
     HEATMAP_FIRST = "heatmap_first"
+    GOLD_HEATMAP_FIRST = "gold_heatmap_first"
     CHAIN_OF_THOUGHT = "chain_of_thought"
 
 USER_PROMPTS = {
