@@ -261,6 +261,44 @@ USER_AGREEMENT_ANSWER = "Answer with the number only."
 #     "3) Answer with your chosen bird species only using one of the following four options: "\
 #     "Crested Auklet, Least Auklet, Parakeet Auklet, Rhinoceros Auklet"
 
+# ================================================ MODULAR PROMPTS ==================================
+
+USER_QUESTION_NODESC = "Based on the areas highlighted by the heatmap, which bird "\
+    "species do you think was predicted for the given image? Choose one of the following options "\
+    "for your answer: \n"\
+    "- Crested Auklet\n"\
+    "- Least Auklet\n"\
+    "- Parakeet Auklet\n"\
+    "- Rhinoceros Auklet\n"
+
+USER_QUESTION_DESC = "Based on the descriptions and the areas highlighted by the heatmap, which bird "\
+    "species do you think was predicted for the given image? Choose one of the following options "\
+    "for your answer: \n"\
+    "- Crested Auklet\n"\
+    "- Least Auklet\n"\
+    "- Parakeet Auklet\n"\
+    "- Rhinoceros Auklet\n"
+
+USER_NOPROFILING_1 = "As guidance, here are some example images that can help you understand how each bird type is distinguished: "
+
+USER_NOPROFILING_2 = "Now, please consider the following image. Based on the examples and the areas highlighted by the heatmap, which bird"\
+    "species do you think was predicted for the given image? Choose one of the following options "\
+    "for your answer: \n"\
+    "- Crested Auklet\n"\
+    "- Least Auklet\n"\
+    "- Parakeet Auklet\n"\
+    "- Rhinoceros Auklet\n"
+
+USER_INSTRUCT_NO_REASON = "Answer with the bird name only."
+
+USER_INSTRUCT_PROFILE_FIRST = "First, describe all areas of the bird that are highlighted in the heatmap. Finally, for each bird "\
+    "description given, explain why it might or might not be that species of bird. Conclude your answer "\
+    "by stating only the selected option in the last line of your answer. Keep the number of tokens low."
+
+USER_INSTRUCT_HEATMAP_FIRST = "For each bird description, explain why it might or might not be that species of bird based on your heatmap description. "\
+    "Conclude your answer by stating only the selected option in the last line of your answer."
+
+
 # ================================================= PROMPT DATA STRUCTURES ==========================
 
 from enum import Enum
@@ -290,6 +328,11 @@ USER_PROMPTS = {
     (ReasoningOption.CHAIN_OF_THOUGHT, "example_answer") : USER_EXAMPLE_ANSWER_5
 }
 
+USER_INSTRUCTS = {
+    ReasoningOption.NONE : USER_INSTRUCT_NO_REASON,
+    ReasoningOption.PROFILE_FIRST : USER_INSTRUCT_PROFILE_FIRST,
+    ReasoningOption.HEATMAP_FIRST : USER_INSTRUCT_HEATMAP_FIRST
+}
 EXAMPLE_IMAGE_PATH = "11-Crested.png"
 
 AGREEMENT_PROMPTS = {

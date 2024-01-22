@@ -30,6 +30,7 @@ from utils.questionnaire import (
     find_imagepaths,
     count_correct_LLM_answers,
     count_correct_human_answers,
+    EXAMPLE_IMAGES,
     average_agreement_score
 )
 
@@ -39,8 +40,12 @@ from utils.prompts import (
     TOKENS_LOW,
     AGREEMENT_PROMPTS,
     AGREEMENT_QUESTIONS,
-    EXAMPLE_IMAGE_PATH,
-    ReasoningOption
+    ReasoningOption,
+    USER_QUESTION_NODESC,
+    USER_INSTRUCTS,
+    USER_NOPROFILING_1,
+    USER_NOPROFILING_2,
+    EXAMPLE_IMAGE_PATH
 )
 
 from utils.answer_processing import (
@@ -64,8 +69,13 @@ def initialize_parser():
                                 help="how to select users (default: %(default)s, choices: %(choices)s)")
     #parser.add_argument('--profiling', default='full', type=str, choices=['full', 'minimal', 'none'],
     #                            help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
-    parser.add_argument('--profiling', default=True, type=bool, 
-                                help="whether to include profiling infor or not (default: True)")
+    #parser.add_argument('--profiling', default=True, type=bool, 
+    #                            help="whether to include profiling infor or not (default: True)")
+    profiling_parser = parser.add_mutually_exclusive_group(required=False)
+    profiling_parser.add_argument('--with_profiling', dest='profiling', action='store_true')
+    profiling_parser.add_argument('--without_profiling', dest='profiling', action='store_false')
+    parser.set_defaults(profiling=True)
+    
     parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first', 'chain_of_thought'],
                                 help="whether and how to ask LLM for reasoning (default: %(default)s, choices: %(choices)s)")
     
@@ -142,6 +152,31 @@ def LLM_prediction_chain_of_thought(user:UserProfile, image_path_example: str, i
                 get_msg(role="assistant", prompt=answer_example) +\
                 get_msg_with_image(role="user", prompt=question, image=image_path_question)
         )
+    actual_response = response["choices"][0]["message"]["content"] # have a string
+    return actual_response
+
+def LLM_prediction_no_profile(image_path: str, reasoning: ReasoningOption) -> str:
+    """Main part of the interview simulation, no profiling: gives LLM example heatmaps, then asks user study question.
+    
+        Args:
+            image_path (str) : path to the image corresponding to the question
+            reasoning (ReasoningOption) : variation of prompts to use 
+        
+        Returns:
+            (str) : simulated question answer
+    """
+    response = openai.ChatCompletion.create(
+            model = "gpt-4-vision-preview",
+            max_tokens = 400,
+            messages = 
+                get_msg(role="user", prompt=USER_PROMPTS[(reasoning, "intro")]+USER_NOPROFILING_1) +\
+                get_msg_with_image(role="user", prompt="Crested Auklet:", image=EXAMPLE_IMAGES[Auklets.CRESTED]) +\
+                get_msg_with_image(role="user", prompt="Least Auklet:", image=EXAMPLE_IMAGES[Auklets.LEAST]) +\
+                get_msg_with_image(role="user", prompt="Parakeet Auklet:", image=EXAMPLE_IMAGES[Auklets.PARAKEET]) +\
+                get_msg_with_image(role="user", prompt="Rhinoceros Auklet:", image=EXAMPLE_IMAGES[Auklets.RHINOCEROS]) +\
+                get_msg_with_image(role="user", prompt=USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning], image=image_path) 
+        )
+
     actual_response = response["choices"][0]["message"]["content"] # have a string
     return actual_response
 
@@ -305,23 +340,27 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
-    if reasoning == ReasoningOption.HEATMAP_FIRST:
-        QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
+    if not profiling:
+        QUESTION = USER_NOPROFILING_1 + "[EXAMPLES]. " + USER_NOPROFILING_2 + USER_INSTRUCTS[reasoning]
+    elif reasoning == ReasoningOption.HEATMAP_FIRST:
+        QUESTION = user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
         EXAMPLE_QUESTION = USER_PROMPTS[(reasoning, "example_profiling")] + USER_PROMPTS[(reasoning, "question")]
         QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
         EXAMPLE_ANSWER = USER_PROMPTS[(reasoning, "example_answer")]
     else:
-        QUESTION = USER_PROMPTS[(reasoning, "intro")] + ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")]
-    print(QUESTION)
+        QUESTION = USER_PROMPTS[(reasoning, "intro")] + \
+            user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")]) + \
+            USER_PROMPTS[(reasoning, "question")]
+    # print(QUESTION)
 
     # Get gpt-4 response and add the question + answer in the protocol
     with open(bird_output_path(reasoning, profiling, "protocol"), mode="a+") as f:
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling == True:
             f.write(user.profiling_prompt)
+        f.write(USER_PROMPTS[(reasoning, "intro")])
         if reasoning == ReasoningOption.HEATMAP_FIRST:
-            f.write(USER_PROMPTS[(reasoning, "intro")])
             f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
             print(str(heatmap_description))
@@ -338,7 +377,9 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write(QUESTION)
         f.write("\n")
 
-        if reasoning == ReasoningOption.HEATMAP_FIRST:
+        if not profiling:
+            llm_response = LLM_prediction_no_profile(image_path, reasoning)
+        elif reasoning == ReasoningOption.HEATMAP_FIRST:
             llm_response = LLM_prediction_heatmap_first(user, image_path, profiling, heatmap_description, QUESTION)
         elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
             llm_response = LLM_prediction_chain_of_thought(user, image_path_example, image_path, profiling, EXAMPLE_QUESTION, QUESTION, EXAMPLE_ANSWER) 
@@ -440,7 +481,10 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
     # simulate interview for each user and question
     for user in profiles:
 
-        user_id = user.user_background['id']
+        if profiling:
+            user_id = user.user_background['id']
+        else:
+            user_id = results_df.shape[0]
 
         # if the user does not already have a row in the results data frame, create a new one
         if user_id not in list(results_df.index):
@@ -482,7 +526,7 @@ def main():
     # ----------------------------------------- profiling -----------------------------------------------
 
     if not args.profiling:
-        profiles:[UserProfile] = [UserProfile(DEFAULT_DATA)]
+        profiles:[UserProfile] = args.number_users * [UserProfile(DEFAULT_DATA)]
     else:
         # find users
         profiles:[UserProfile] = create_userprofiles(read_human_data("../../data-exploration-cleanup/cleaned_simulatedusers.csv", 

@@ -18,11 +18,11 @@ For an overview over all options, see
 ```
 
 #### Profiling options
-There are two levels of profiling, which can be chosen with the `--profiling` option.
-- `True` includes all the demographic data about a human and the answers to the warmup questions (what features indicate each class)
-- `False` includes neither
+There are two levels of profiling, which can be chosen with the following options:
+- `--with_profiling` includes all the demographic data about a human and the answers to the warmup questions (what features indicate each class)
+- `--without_profiling` includes neither
 
-*NOTE: for the `False` option, each question will only be given once to the LLM. In particular, the user options explained in the following will be ignored.*
+*NOTE: for the `--without_profiling` option, each question will only be given once to the LLM. In particular, the user options explained in the following will be ignored.*
 
 #### User options
 To set a number of users to simulate, use the `--number_users` option. By default, users will be chosen randomly from the human dataset. This can be changed using the `--select_users` option, which has the three options `random`, `first`, and `last`.
