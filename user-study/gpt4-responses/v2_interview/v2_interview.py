@@ -66,7 +66,7 @@ def initialize_parser():
     #                            help="how much profiling info to use (default: %(default)s, choices: %(choices)s)")
     parser.add_argument('--profiling', default=True, type=bool, 
                                 help="whether to include profiling infor or not (default: True)")
-    parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'profile_first', 'chain_of_thought'],
+    parser.add_argument('--reasoning', default='none', type=str, choices=['none', 'heatmap_first', 'gold_heatmap_first', 'profile_first', 'chain_of_thought'],
                                 help="whether and how to ask LLM for reasoning (default: %(default)s, choices: %(choices)s)")
     
     subparsers = parser.add_subparsers(dest='subparser_name', help='optionally: specify how to select questionnaire questions. by default, all 20 are used')
@@ -305,7 +305,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
 
     # https://platform.openai.com/docs/api-reference/chat/create?lang=python
 
-    if reasoning == ReasoningOption.HEATMAP_FIRST:
+    if reasoning in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
         QUESTION = ("" if not profiling else user.personalize_prompt(USER_PROMPTS[(reasoning, "profiling")])) + USER_PROMPTS[(reasoning, "question")] + " " + TOKENS_LOW
     elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
         EXAMPLE_QUESTION = USER_PROMPTS[(reasoning, "example_profiling")] + USER_PROMPTS[(reasoning, "question")]
@@ -320,7 +320,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write("Simulated user {u} answering question {i}:\n".format(u=user.user_background['id'], i=q_num))
         if profiling == True:
             f.write(user.profiling_prompt)
-        if reasoning == ReasoningOption.HEATMAP_FIRST:
+        if reasoning in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
             f.write(USER_PROMPTS[(reasoning, "intro")])
             f.write(USER_PROMPTS[(reasoning, "heatmap")])
             f.write("\n")
@@ -338,7 +338,7 @@ def single_prediction(user : UserProfile, image_path : str, q_num : int, profili
         f.write(QUESTION)
         f.write("\n")
 
-        if reasoning == ReasoningOption.HEATMAP_FIRST:
+        if reasoning in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
             llm_response = LLM_prediction_heatmap_first(user, image_path, profiling, heatmap_description, QUESTION)
         elif reasoning == ReasoningOption.CHAIN_OF_THOUGHT:
             llm_response = LLM_prediction_chain_of_thought(user, image_path_example, image_path, profiling, EXAMPLE_QUESTION, QUESTION, EXAMPLE_ANSWER) 
@@ -453,7 +453,7 @@ def simulate_interviews(question_paths:[(int, str)], profiles:[UserProfile], pro
             print(results_df.at[user_id, question])
             if results_df.at[user_id, question].lower() not in birds:
                 try:
-                    if reasoning==ReasoningOption.HEATMAP_FIRST:
+                    if reasoning in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, heatmap_descriptions[q_index-1]['heatmap_description'])
                     elif reasoning==ReasoningOption.CHAIN_OF_THOUGHT:
                         results_df.at[user_id, question] = single_prediction(user, q_path, q_index, profiling, reasoning, image_path_example=EXAMPLE_IMAGE_PATH)
@@ -512,12 +512,14 @@ def main():
         question_paths = find_imagepaths("prediction_questions.csv", question_IDs)
 
         reasoning = ReasoningOption[args.reasoning.upper()]
+        print(reasoning)
 
-        if reasoning != ReasoningOption.HEATMAP_FIRST:
+        if reasoning not in [ReasoningOption.HEATMAP_FIRST, ReasoningOption.GOLD_HEATMAP_FIRST]:
             simulate_interviews(question_paths, profiles, args.profiling, reasoning)
         else:
-            generate_heatmap_descriptions(question_IDs)
-            heatmap_descriptions = get_heatmap_descriptions()
+            if reasoning == ReasoningOption.HEATMAP_FIRST:
+                generate_heatmap_descriptions(question_IDs)
+            heatmap_descriptions = get_heatmap_descriptions(reasoning == ReasoningOption.GOLD_HEATMAP_FIRST)
             simulate_interviews(question_paths, profiles, args.profiling, reasoning, heatmap_descriptions)
 
     else:

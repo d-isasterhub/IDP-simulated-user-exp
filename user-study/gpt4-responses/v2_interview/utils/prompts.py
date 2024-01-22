@@ -270,6 +270,7 @@ class ReasoningOption(Enum):
     NONE = "none"
     PROFILE_FIRST = "profile_first"
     HEATMAP_FIRST = "heatmap_first"
+    GOLD_HEATMAP_FIRST = "gold_heatmap_first"
     CHAIN_OF_THOUGHT = "chain_of_thought"
 
 USER_PROMPTS = {
@@ -284,6 +285,10 @@ USER_PROMPTS = {
     (ReasoningOption.HEATMAP_FIRST, "profiling") : USER_PROFILING_4,
     (ReasoningOption.HEATMAP_FIRST, "question") : USER_QUESTION_4,
     (ReasoningOption.HEATMAP_FIRST, "heatmap") : USER_HEATMAP_4,
+    (ReasoningOption.GOLD_HEATMAP_FIRST, "intro") : USER_INTRO_4,
+    (ReasoningOption.GOLD_HEATMAP_FIRST, "profiling") : USER_PROFILING_4,
+    (ReasoningOption.GOLD_HEATMAP_FIRST, "question") : USER_QUESTION_4,
+    (ReasoningOption.GOLD_HEATMAP_FIRST, "heatmap") : USER_HEATMAP_4,
     (ReasoningOption.CHAIN_OF_THOUGHT, "profiling") : USER_PROFILING_5,
     (ReasoningOption.CHAIN_OF_THOUGHT, "question") : USER_QUESTION_5,
     (ReasoningOption.CHAIN_OF_THOUGHT, "example_profiling") : USER_EXAMPLE_PROFILING_5,
